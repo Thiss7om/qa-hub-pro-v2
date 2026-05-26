@@ -1083,73 +1083,6 @@
     letter-spacing: 0.2px;
   }
   [data-theme="light"] .global-loading-overlay { background: rgba(240,244,248,0.6); }
-
-  /* ── [v24-SUBSCRIPTION] Pricing & Plan styles ── */
-  .pricing-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:20px 0; }
-  .pricing-card {
-    border:2px solid var(--border); border-radius:12px; padding:24px 20px;
-    cursor:pointer; transition:all 0.2s ease; position:relative; overflow:hidden;
-    background:var(--bg2);
-  }
-  .pricing-card:hover { border-color:var(--accent); transform:translateY(-2px); box-shadow:var(--shadow); }
-  .pricing-card.selected { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
-  .pricing-card.unlimit-card { border-color:var(--amber); }
-  .pricing-card.unlimit-card:hover,
-  .pricing-card.unlimit-card.selected { box-shadow:0 0 0 3px rgba(245,158,11,0.25); border-color:var(--amber); }
-  .pricing-badge {
-    position:absolute; top:12px; right:12px;
-    font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase;
-    padding:3px 8px; border-radius:20px;
-  }
-  .pricing-badge-popular { background:var(--amber-bg); color:var(--amber); border:1px solid var(--amber); }
-  .pricing-icon { font-size:36px; margin-bottom:12px; }
-  .pricing-name { font-size:18px; font-weight:700; margin-bottom:6px; }
-  .pricing-price { font-size:26px; font-weight:900; color:var(--accent); margin-bottom:4px; font-family:var(--mono); }
-  .pricing-price.unlimit-price { color:var(--amber); }
-  .pricing-period { font-size:11px; color:var(--text3); margin-bottom:16px; }
-  .pricing-features { list-style:none; display:flex; flex-direction:column; gap:8px; }
-  .pricing-features li { font-size:12px; color:var(--text2); display:flex; align-items:center; gap:6px; }
-  .limit-badge { background:var(--red-bg); color:var(--red); border:1px solid var(--red); padding:1px 6px; border-radius:10px; font-size:10px; font-weight:700; }
-  .unlimit-badge { background:var(--green-bg); color:var(--green); border:1px solid var(--green); padding:1px 6px; border-radius:10px; font-size:10px; font-weight:700; }
-  /* countdown */
-  .countdown-wrap { display:flex; justify-content:center; gap:12px; margin:20px 0; }
-  .countdown-unit { text-align:center; }
-  .countdown-num {
-    font-size:36px; font-weight:900; font-family:var(--mono); color:var(--amber);
-    background:var(--amber-bg); border:2px solid var(--amber); border-radius:10px;
-    padding:8px 16px; min-width:64px; display:block; line-height:1; transition:color 0.3s;
-  }
-  .countdown-num.urgent { color:var(--red)!important; border-color:var(--red); background:var(--red-bg); animation:pulse 1s infinite; }
-  .countdown-label { font-size:10px; color:var(--text3); margin-top:4px; letter-spacing:1px; text-transform:uppercase; }
-  /* plan banners */
-  .plan-banner { display:flex; align-items:center; gap:10px; padding:8px 14px; border-radius:8px; font-size:12px; font-weight:600; border:1px solid; margin-bottom:8px; }
-  .plan-banner-free { background:var(--bg3); border-color:var(--border); color:var(--text2); }
-  .plan-banner-temp { background:var(--amber-bg); border-color:var(--amber); color:var(--amber); }
-  .plan-banner-unlimit { background:var(--green-bg); border-color:var(--green); color:var(--green); }
-  /* super admin */
-  .slip-card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:12px; transition:border-color 0.2s; }
-  .slip-card:hover { border-color:var(--border2); }
-  .slip-card.pending-slip { border-left:4px solid var(--amber); }
-  .slip-card.approved-slip { border-left:4px solid var(--green); }
-  .slip-card.rejected-slip { border-left:4px solid var(--red); }
-  .slip-image-preview { max-width:100%; max-height:420px; border-radius:8px; border:1px solid var(--border); display:block; margin:12px auto; }
-  .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
-  .stats-mini { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:16px; text-align:center; }
-  .stats-mini-num { font-size:28px; font-weight:900; font-family:var(--mono); }
-  .stats-mini-label { font-size:11px; color:var(--text3); margin-top:4px; }
-  /* limit upgrade banner */
-  .limit-upgrade-banner {
-    background:linear-gradient(135deg,var(--amber-bg),var(--bg3)); border:1px solid var(--amber); border-radius:10px;
-    padding:14px 18px; margin:14px 0; display:flex; align-items:center; justify-content:space-between; gap:16px;
-  }
-  /* slip upload */
-  .slip-upload-zone {
-    border:2px dashed var(--border2); border-radius:10px; padding:28px;
-    text-align:center; cursor:pointer; transition:all 0.2s;
-  }
-  .slip-upload-zone:hover { border-color:var(--accent); background:var(--accent-bg); }
-  .slip-upload-zone.has-image { border-style:solid; border-color:var(--green); background:var(--green-bg); }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
 </style>
 </head>
 <body>
@@ -1283,13 +1216,12 @@ const detectionOpts = ['Positive','Negative'];
 // ─── GOOGLE SHEETS CONFIG ─────────────────────────────────────────────────────
 // ใส่ URL ของ Google Apps Script Web App ที่ Deploy แล้ว
 // [FIX VULN-06] SS_ID ถูกลบออกจาก client-side code แล้ว — อยู่ใน Code.gs เท่านั้น
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbz-aiWsOoMSDe1HAVEvZpjqR4FTNn5jLAp9GGg9-0AFwUWyrpX1bKcQE9Poo_a9NhaD/exec'; // ← ใส่ GAS URL ใหม่หลัง re-deploy
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzXY-5yxFNPZsfWNZr8qup9sM--AAjJTppSoaMJImCpgNR0TfKiOmLOxIrvCSNiXVgP/exec'; // ← ใส่ GAS URL ใหม่หลัง re-deploy
 
-// ─── [v24-SUBSCRIPTION] SUPER ADMIN EMAILS ────────────────────────────────────
-// ตั้งค่า: ใส่ email ของ Dev/Admin ที่มีสิทธิ์เข้า Super Admin Panel
-// ⚠ ต้องตรงกับ Script Properties: SUPER_ADMIN_EMAILS ใน GAS
-// คั่นด้วย comma เช่น 'dev@company.com,admin@company.com'
-window._SUPER_ADMIN_EMAILS = 'thosapon.som@gmail.com,itomato125@gmail.com'; // ← ใส่ email Super Admin ที่นี่
+// [v23-PLAN] Super Admin (Dev) emails — คั่นด้วย comma, ไม่มี space
+// User ที่มี email อยู่ในนี้จะ: (1) ไม่เห็น Plan modal (2) เห็น Dev Dashboard ใน sidebar
+// ตัวอย่าง: 'dev@company.com,admin@company.com'
+window.__QAH_SUPER_ADMINS__ = 'thosapon.som@gmail.com,itomato125@gmail.com'; // ← ใส่ email Dev ที่นี่
 
 // ─── [v21] GOOGLE OAUTH CLIENT ID ────────────────────────────────────────────
 // ตั้งค่า: Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs
@@ -1485,7 +1417,7 @@ function stripFilesForSheet(obj) {
 // ─── API CLIENT ───────────────────────────────────────────────────────────────
 // [FIX VULN-02] แนบ token ทุก request  |  [FIX VULN-01] ลบ encrypt/decrypt ฝั่ง client
 
-const SHEETS_VALID = new Set(['users','teams','members','projects','tasks','testCases','defects','logs','loginLogs','pending','plans']);
+const SHEETS_VALID = new Set(['users','teams','members','projects','tasks','testCases','defects','logs','loginLogs','pending','plans','orders','teamTokens']);
 
 const api = {
   // [FIX VULN-02][FIX HIGH-1] GET — token ส่งใน encoded payload (ไม่ใช่ URL query string)
@@ -1570,6 +1502,20 @@ const api = {
   // [FIX-INVITE] ค้นหาทีมจาก invite code — query GAS โดยตรง (ไม่ใช้ local state ที่กรองเฉพาะทีมของตัวเอง)
   lookupTeamByCode(inviteCode) { return this._write({ action:'lookupTeamByCode', inviteCode }); },
 
+  // [v23-PLAN] Plan & Token API
+  selectPlan(teamId, plan, adminEmail, adminName, teamName) {
+    return this._write({ action:'selectPlan', teamId, plan, adminEmail, adminName, teamName });
+  },
+  getMyPlan(teamId)  { return this._write({ action:'getMyPlan',  teamId }); },
+  upgradePlan(teamId, adminEmail, adminName, teamName) {
+    return this._write({ action:'upgradePlan', teamId, adminEmail, adminName, teamName });
+  },
+  getDevOrders(filterStatus) { return this._write({ action:'getDevOrders', filterStatus: filterStatus||'' }); },
+  approveOrder(orderId, note) { return this._write({ action:'approveOrder', orderId, note: note||'' }); },
+  rejectOrder(orderId, note)  { return this._write({ action:'rejectOrder',  orderId, note: note||'' }); },
+  resendToken(teamId)         { return this._write({ action:'resendToken',  teamId }); },
+  saveSystemToken(teamId, authToken) { return this._write({ action:'saveSystemToken', teamId, authToken }); },
+
   // rawWrite — สำหรับ sendVerifyCode / verifyCode / login / register (ไม่ต้อง token)
   // ✅ กลับมาใช้ GET เหมือนเดิม
   async rawWrite(payload) {
@@ -1584,31 +1530,7 @@ const api = {
   },
 };
 
-// ─── [v24-SUBSCRIPTION] API helpers ────────────────────────────────────────────
-api.initSubscriptionPlan  = (teamId, plan) => api._write({ action:'initSubscriptionPlan', teamId, plan });
-api.submitPaymentSlip     = (teamId, slipImageBase64, slipNote, amount) => api._write({ action:'submitPaymentSlip', teamId, slipImageBase64, slipNote, amount });
-api.approvePayment        = (slipId) => api._write({ action:'approvePayment', slipId });
-api.rejectPayment         = (slipId, rejectReason) => api._write({ action:'rejectPayment', slipId, rejectReason });
-api.getSuperAdminData     = () => api._write({ action:'getSuperAdminData' });
-api.getSlipImage          = (slipId) => api._write({ action:'getSlipImage', slipId });
-api.getTeamPlanStatus     = (teamId) => api._write({ action:'getTeamPlanStatus', teamId });
-api.checkPlanLimits       = (teamId, sheet) => api._write({ action:'checkPlanLimits', teamId, sheet });
-api.getSubscriptions      = () => api._write({ action:'getSubscriptions' });
-api.cancelPendingPayment  = (teamId) => api._write({ action:'cancelPendingPayment', teamId });
-
-// Free Plan limits (client-side mirror)
-const FREE_PLAN_LIMITS = { projects: 1, tasks: 2, testCases: 30, defects: 10 };
-
-// checkLimitBeforeInsert — ตรวจ quota ก่อน insert (ใช้ใน Projects/Tasks/TC/Defects)
-async function checkLimitBeforeInsert(teamId, sheet, teamPlan) {
-  if (teamPlan?.isUnlimit) return { allowed: true };
-  try {
-    return await api.checkPlanLimits(teamId, sheet);
-  } catch(e) {
-    console.warn('[QAHUBs] checkPlanLimits error:', e.message);
-    return { allowed: true }; // fail-open
-  }
-}
+// ─── LOCAL SESSION (เก็บเฉพาะ session ไม่เอา data) ────────────────────────────
 const getSession = (k, def) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } };
 const setSession = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
@@ -1868,6 +1790,11 @@ function App() {
     const newMap = Object.fromEntries(newData.map(o => [o.id, o]));
 
     const onErr = (action, id, e) => {
+      // [v23-PLAN] Intercept plan limit errors → show upgrade modal
+      if (e.message && e.message.startsWith('PLAN_LIMIT_')) {
+        showPlanLimitModal(e.message);
+        return;
+      }
       console.error(`[QAHUBs] ${action} ${sheet}#${id} failed:`, e.message);
       setToast({ msg: `Sync ล้มเหลว (${action} ${sheet}): ${e.message}`, type:'error', id: uid() });
     };
@@ -2303,24 +2230,6 @@ function App() {
   const canDelete = currentTeam ? ['admin','function'].includes(myRole(currentTeam.id)) : false;
   const canView = true;
 
-  // [v24-SUBSCRIPTION] Super Admin check — ตรวจจาก email ของ currentUser
-  // ⚠ ต้องแก้ SUPER_ADMIN_EMAILS_LIST ให้ตรงกับ Script Properties: SUPER_ADMIN_EMAILS
-  const SUPER_ADMIN_EMAILS_LIST = (window._SUPER_ADMIN_EMAILS || '').split(',').map(e=>e.trim().toLowerCase()).filter(Boolean);
-  const isSuperAdminUser = SUPER_ADMIN_EMAILS_LIST.includes((currentUser?.email||'').toLowerCase());
-
-  // [v24-SUBSCRIPTION] Plan state ของทีมปัจจุบัน
-  const [teamPlan, setTeamPlan] = useState(null);
-  const [showLimitModal, setShowLimitModal] = useState(null); // { sheet, limit }
-
-  useEffect(() => {
-    if (!currentTeam?.id) { setTeamPlan(null); return; }
-    let cancelled = false;
-    api.getTeamPlanStatus(currentTeam.id)
-      .then(plan => { if (!cancelled) setTeamPlan(plan); })
-      .catch(() => { if (!cancelled) setTeamPlan({ plan:'free', isUnlimit:false }); });
-    return () => { cancelled = true; };
-  }, [currentTeam?.id]);
-
   // [v22] Auto-redirect เมื่อ currentUser ถูก set inactive ใน currentTeam
   // GAS กรอง inactive ออกจาก members ที่ส่งกลับมา → members state จะไม่มี record ของ user นี้
   // → myTeams จะไม่มี currentTeam → ตรวจจาก members โดยตรงแทน
@@ -2357,6 +2266,37 @@ function App() {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('qah_theme', theme);
   }, [theme]);
+
+  // [v23-PLAN] Super Admin detection (email-based, loaded from session)
+  const isSuperAdminUser = useMemo(() => {
+    if (!currentUser) return false;
+    const superEmails = (window.__QAH_SUPER_ADMINS__ || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+    return superEmails.includes((currentUser.email||'').toLowerCase());
+  }, [currentUser]);
+
+  // [v23-PLAN] Plan Limit Modal state
+  const [planLimitType, setPlanLimitType] = useState(null); // e.g. 'PLAN_LIMIT_PROJECTS'
+  const showPlanLimitModal = (errMsg) => {
+    const m = String(errMsg||'').match(/PLAN_LIMIT_(\w+)/);
+    setPlanLimitType(m ? m[0] : 'PLAN_LIMIT_ITEM');
+  };
+
+  // [v23-PLAN] Trial warning — check on every team switch
+  const [trialDaysLeft, setTrialDaysLeft] = useState(null);
+  useEffect(() => {
+    if (!currentTeam || !currentUser) { setTrialDaysLeft(null); return; }
+    (async () => {
+      try {
+        const data = await api.getMyPlan(currentTeam.id);
+        if (data?.plan === 'paid_trial' && data?.trialEndAt) {
+          const ms = new Date(data.trialEndAt).getTime() - Date.now();
+          setTrialDaysLeft(Math.max(0, Math.ceil(ms / 86400000)));
+        } else {
+          setTrialDaysLeft(null);
+        }
+      } catch(e) { setTrialDaysLeft(null); }
+    })();
+  }, [currentTeam?.id]); // eslint-disable-line
 
   // Handle invite link: capture ?join=BASE64_PAYLOAD from URL
   useEffect(() => {
@@ -2577,8 +2517,8 @@ function App() {
     plans, setPlans, setPlansState, teamPlans,
     sessionTimeoutMsg, setSessionTimeoutMsg,
     pendingMemberOpsRef, pendingTcStatusRef, pendingDefStatusRef,
-    // [v24-SUBSCRIPTION]
-    teamPlan, setTeamPlan, isSuperAdminUser, showLimitModal, setShowLimitModal };
+    // [v23-PLAN]
+    isSuperAdminUser, showPlanLimitModal, trialDaysLeft };
 
   // LOADING SCREEN
   if (loading || !tokenReady) {
@@ -2658,20 +2598,22 @@ function App() {
         h('strong',null,`รหัสผ่านจะหมดอายุใน ${currentUser.passwordDaysLeft} วัน`),
         h('span',{style:{color:'var(--text2)'}},' กรุณาเปลี่ยนรหัสผ่านที่เมนูตั้งค่าโปรไฟล์')
       ),
+      // [v23-PLAN] Trial warning banner
+      trialDaysLeft !== null && h('div', { style:{background:'#fef3c7',borderBottom:'1px solid var(--amber)',padding:'8px 24px',display:'flex',alignItems:'center',gap:'10px',fontSize:'13px',color:'#92400e',flexShrink:0} },
+        h('span',{className:'ms ms-sm',style:{color:'var(--amber)'}},'timer'),
+        h('strong',null, trialDaysLeft > 0 ? `Trial Unlimited เหลือ ${trialDaysLeft} วัน` : 'Trial หมดอายุแล้ว'),
+        h('span',{style:{color:'#78350f'}},' — กรุณา Update Token Unlimited ใน System Settings เพื่อใช้งานต่อ'),
+        isAdmin && h('button', {
+          className:'btn btn-sm',
+          style:{marginLeft:'auto',background:'var(--amber)',color:'#fff',border:'none',padding:'4px 12px',fontSize:'12px'},
+          onClick: () => navigate('team-settings')
+        }, 'ไปที่ Settings')
+      ),
       h('div', { className: 'main' },
         sidebarOpen && h('div', { className: 'sidebar-overlay', onClick: closeSidebar }),
-        h(Sidebar, { ...ctx, navigate, currentPage: page, navCtx, sidebarOpen, closeSidebar, isSuperAdminUser }),
+        h(Sidebar, { ...ctx, navigate, currentPage: page, navCtx, sidebarOpen, closeSidebar }),
         h('div', { className: 'content' },
           h('div', { className: 'page' },
-            // [v24-SUBSCRIPTION] Plan status banner (แสดงบนทุกหน้าเมื่อมี currentTeam)
-            currentTeam && teamPlan && h(PlanStatusBanner, {
-              teamPlan,
-              onUpgrade: isAdmin ? () => {
-                // ไปหน้า payment — ต้องสร้าง pending_payment ใหม่ก่อน
-                api.initSubscriptionPlan(currentTeam.id, 'unlimit').catch(()=>{});
-                setPage('payment-upgrade');
-              } : undefined
-            }),
             page === 'dashboard' && h(DashboardPage, { ...ctx, navigate, users:ctx.users, currentUser:ctx.currentUser, currentTeam:ctx.currentTeam }),
             page === 'projects' && h(ProjectsPage, { ...ctx, navigate }),
             page === 'project-detail' && h(ProjectDetailPage, { ...ctx, navigate }),
@@ -2681,56 +2623,27 @@ function App() {
             page === 'activity-log' && h(ActivityLogPage, { ...ctx, navigate, members, currentTeam }),
             page === 'data-explorer' && h(DataExplorerPage, { ...ctx, navigate }),
             page === 'plan' && h(PlanPage, { ...ctx, navigate }),
-            // [v24-SUBSCRIPTION] Super Admin Panel
-            page === 'super-admin' && isSuperAdminUser && h(SuperAdminPanel, { currentUser, showToast }),
-            page === 'super-admin' && !isSuperAdminUser && h('div',{style:{padding:'48px',textAlign:'center',color:'var(--red)'}},
-              h('span',{className:'ms ms-xxl',style:{opacity:0.3}},'block'),
-              h('div',{style:{marginTop:'16px',fontWeight:'600'}},'Access Denied — Super Admin Only')
-            ),
+            // [v23-PLAN] Dev Dashboard — Super Admin only
+            page === 'dev-dashboard' && isSuperAdminUser && h(DevDashboardPage, { currentUser, showToast }),
           )
         )
       )
     ),
-    // [v24-SUBSCRIPTION] Limit modal (เมื่อกด add แล้วเกิน quota)
-    showLimitModal && h(PlanLimitModal, {
-      sheet: showLimitModal.sheet,
-      limit: showLimitModal.limit,
-      onClose: () => setShowLimitModal(null),
-      onUpgrade: () => {
-        setShowLimitModal(null);
-        if (isAdmin && currentTeam) {
-          api.initSubscriptionPlan(currentTeam.id, 'unlimit').catch(()=>{});
-          setPage('payment-upgrade');
-        }
-      }
-    }),
-    // [v24-SUBSCRIPTION] PaymentPage portal สำหรับ Upgrade (จากทีมที่มีอยู่แล้ว)
-    page === 'payment-upgrade' && currentTeam && ReactDOM.createPortal(
-      h('div', { style:{position:'fixed',inset:0,zIndex:9998,background:'var(--bg)',overflowY:'auto'} },
-        h(PaymentPage, {
-          currentTeam,
-          currentUser,
-          showToast,
-          onPaymentSuccess: ({ tempToken, tokenExpiry }) => {
-            setTeamPlan({ plan:'unlimit', isUnlimit:true, isTempAccess:true, tokenExpiry, tokenType:'temp' });
-            setPage('dashboard');
-            showToast('ส่งสลิปสำเร็จ! ✅ ใช้งาน Unlimit ได้ 3 วัน ระหว่างรอตรวจสอบ', 'success');
-          },
-          onTimeout: async () => {
-            api.cancelPendingPayment(currentTeam?.id).catch(()=>{});
-            setPage('dashboard');
-            showToast('หมดเวลาการชำระเงิน — ปรับเป็น Free Plan อัตโนมัติ', 'error');
-          },
-          onCancel: async () => {
-            api.cancelPendingPayment(currentTeam?.id).catch(()=>{});
-            setPage('dashboard');
-          }
-        })
-      ),
-      document.getElementById('modal-root') || document.body
-    ),
     // [v23-OVERLAY] Global loading overlay — แสดงเมื่อโหลดข้อมูลระหว่างใช้งาน
     h(GlobalLoadingOverlay, { visible: navLoading, text: 'กำลังโหลดข้อมูล...' }),
+    // [v23-PLAN] Plan Limit Modal
+    planLimitType && h(PlanLimitModal, {
+      limitType: planLimitType,
+      onClose: () => setPlanLimitType(null),
+      onUpgrade: async () => {
+        setPlanLimitType(null);
+        if (!currentTeam || !isAdmin) { showToast('เฉพาะ Admin เท่านั้นที่สามารถ Upgrade Plan ได้', 'error'); return; }
+        try {
+          await api.upgradePlan(currentTeam.id, currentUser.email, currentUser.name, currentTeam.name);
+          showToast('Upgrade เป็น Unlimited Trial แล้ว — ชำระเงินภายใน 30 นาที และรอ Token ทาง Email', 'warning');
+        } catch(e) { showToast('Upgrade ล้มเหลว: ' + e.message, 'error'); }
+      }
+    }),
     defectModalCtx && h(DefectModal, {
       key: defectModalCtx._key,
       initialTcId: defectModalCtx.initialTcId,
@@ -4381,6 +4294,241 @@ function InviteWaitingPage({ teamName, teamId, currentUser, pendingMembers, setP
   );
 }
 
+// ─── [v23-PLAN] PLAN SELECT CARD ─────────────────────────────────────────────
+function PlanSelectCard({ teamName, onSelect, selecting }) {
+  return h('div', { className:'card', style:{marginTop:'16px', border:'1px solid var(--accent)', background:'var(--bg2)'} },
+    h('div', { className:'card-header' },
+      h('div', { className:'card-title', style:{display:'flex', alignItems:'center', gap:'8px'} },
+        h('span', {className:'ms ms-sm', style:{color:'var(--accent)'}}, 'workspace_premium'),
+        `เลือก Plan สำหรับทีม "${teamName}"`
+      )
+    ),
+    h('div', { style:{padding:'16px 20px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px'} },
+      // Free Plan
+      h('div', { style:{border:'1px solid var(--green)', borderRadius:'var(--r2)', padding:'16px', background:'var(--green-bg)', cursor: selecting?'default':'pointer', opacity: selecting?0.7:1 },
+        onClick: () => !selecting && onSelect('free') },
+        h('div', { style:{display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px'} },
+          h('span', { className:'ms', style:{color:'var(--green)', fontSize:'24px'} }, 'check_circle'),
+          h('div', null,
+            h('div', { style:{fontWeight:'700', fontSize:'15px', color:'var(--green)'} }, 'Free Plan'),
+            h('div', { style:{fontSize:'11px', color:'var(--text2)'} }, 'ฟรีตลอดไป')
+          )
+        ),
+        h('ul', { style:{margin:'0', padding:'0 0 0 4px', listStyle:'none', fontSize:'12px', color:'var(--text2)', lineHeight:'2'} },
+          h('li', null, h('span',{className:'ms ms-xs', style:{color:'var(--green)',marginRight:'4px'}},'check'), 'Project สูงสุด 1 โปรเจกต์'),
+          h('li', null, h('span',{className:'ms ms-xs', style:{color:'var(--green)',marginRight:'4px'}},'check'), 'Task สูงสุด 2 งาน'),
+          h('li', null, h('span',{className:'ms ms-xs', style:{color:'var(--green)',marginRight:'4px'}},'check'), 'Test Case สูงสุด 30 รายการ'),
+          h('li', null, h('span',{className:'ms ms-xs', style:{color:'var(--green)',marginRight:'4px'}},'check'), 'Defect สูงสุด 10 รายการ'),
+        ),
+        h('button', { className:'btn', style:{width:'100%', marginTop:'12px', justifyContent:'center', background:'var(--green)', color:'#fff', border:'none'}, disabled:selecting },
+          selecting ? 'กำลังดำเนินการ...' : 'เลือก Free Plan'
+        )
+      ),
+      // Paid Plan
+      h('div', { style:{border:'2px solid var(--amber)', borderRadius:'var(--r2)', padding:'16px', background:'var(--amber-bg)', cursor: selecting?'default':'pointer', opacity: selecting?0.7:1, position:'relative' },
+        onClick: () => !selecting && onSelect('paid') },
+        h('div', { style:{position:'absolute', top:'-10px', left:'50%', transform:'translateX(-50%)', background:'var(--amber)', color:'#fff', fontSize:'10px', fontWeight:'700', padding:'2px 10px', borderRadius:'20px', whiteSpace:'nowrap'} }, '✨ แนะนำ'),
+        h('div', { style:{display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px'} },
+          h('span', { className:'ms', style:{color:'var(--amber)', fontSize:'24px'} }, 'diamond'),
+          h('div', null,
+            h('div', { style:{fontWeight:'700', fontSize:'15px', color:'var(--amber)'} }, 'Unlimited Plan'),
+            h('div', { style:{fontSize:'11px', color:'var(--text2)'} }, 'ไม่จำกัด — ชำระเงินเพื่อยืนยัน')
+          )
+        ),
+        h('ul', { style:{margin:'0', padding:'0 0 0 4px', listStyle:'none', fontSize:'12px', color:'var(--text2)', lineHeight:'2'} },
+          h('li', null, h('span',{className:'ms ms-xs', style:{color:'var(--amber)',marginRight:'4px'}},'all_inclusive'), 'Project / Task ไม่จำกัด'),
+          h('li', null, h('span',{className:'ms ms-xs', style:{color:'var(--amber)',marginRight:'4px'}},'all_inclusive'), 'Test Case / Defect ไม่จำกัด'),
+          h('li', null, h('span',{className:'ms ms-xs', style:{color:'var(--amber)',marginRight:'4px'}},'timer'), 'Trial 3 วัน (ใช้งานได้ทันที)'),
+          h('li', null, h('span',{className:'ms ms-xs', style:{color:'var(--amber)',marginRight:'4px'}},'schedule'), 'ชำระเงินภายใน 30 นาที'),
+        ),
+        h('button', { className:'btn', style:{width:'100%', marginTop:'12px', justifyContent:'center', background:'var(--amber)', color:'#fff', border:'none'}, disabled:selecting },
+          selecting ? 'กำลังดำเนินการ...' : 'เลือก Unlimited Plan'
+        )
+      )
+    )
+  );
+}
+
+// ─── [v23-PLAN] PLAN LIMIT MODAL ─────────────────────────────────────────────
+function PlanLimitModal({ limitType, onClose, onUpgrade }) {
+  const labels = { projects:'Project', tasks:'Task', testcases:'Test Case', defects:'Defect' };
+  const label  = labels[(limitType||'').replace('PLAN_LIMIT_','').toLowerCase()] || limitType;
+  return h('div', { className:'modal-overlay', onClick:onClose },
+    h('div', { className:'modal', style:{maxWidth:'420px'}, onClick:e=>e.stopPropagation() },
+      h('div', { className:'modal-header' },
+        h('div', { style:{display:'flex', alignItems:'center', gap:'10px'} },
+          h('span', { className:'ms', style:{color:'var(--amber)', fontSize:'28px'} }, 'workspace_premium'),
+          h('h3', { className:'modal-title' }, 'ถึงขีดจำกัด Free Plan')
+        ),
+        h('button', { className:'btn-icon', onClick:onClose }, h('span',{className:'ms'},'close'))
+      ),
+      h('div', { style:{padding:'20px 24px'} },
+        h('div', { style:{background:'var(--amber-bg)', border:'1px solid var(--amber)', borderRadius:'var(--r2)', padding:'16px', marginBottom:'16px', textAlign:'center'} },
+          h('div', { style:{fontSize:'16px', fontWeight:'700', color:'var(--amber)', marginBottom:'6px'} },
+            h('span', {className:'ms ms-sm', style:{marginRight:'6px'}}, 'block'),
+            `ไม่สามารถสร้าง ${label} เพิ่มได้`
+          ),
+          h('div', { style:{fontSize:'13px', color:'var(--text2)'} }, `Free Plan จำกัดจำนวน ${label} ต่อทีม`)
+        ),
+        h('p', { style:{fontSize:'13px', color:'var(--text2)', marginBottom:'16px', lineHeight:'1.8'} },
+          'Upgrade เป็น Unlimited Plan เพื่อสร้างได้ไม่จำกัด — ใช้งานได้ทันทีพร้อม Trial 3 วัน'
+        ),
+        h('div', { style:{display:'flex', gap:'10px'} },
+          h('button', { className:'btn', style:{flex:1, justifyContent:'center'}, onClick:onClose }, 'ปิด'),
+          h('button', { className:'btn btn-primary', style:{flex:2, justifyContent:'center', background:'var(--amber)', border:'1px solid var(--amber)'}, onClick:onUpgrade },
+            h('span',{className:'ms ms-sm', style:{marginRight:'6px'}},'upgrade'), 'Upgrade เป็น Unlimited'
+          )
+        )
+      )
+    )
+  );
+}
+
+// ─── [v23-PLAN] DEV DASHBOARD PAGE ───────────────────────────────────────────
+function DevDashboardPage({ currentUser, showToast }) {
+  const [orders, setOrders]     = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [tab, setTab]           = useState('pending');
+  const [approving, setApproving] = useState({});
+  const [rejecting, setRejecting] = useState({});
+  const [resending, setResending] = useState({});
+  const [noteMap, setNoteMap]   = useState({});
+
+  const loadOrders = async (filterStatus) => {
+    setLoading(true);
+    try {
+      const data = await api.getDevOrders(filterStatus || '');
+      setOrders(Array.isArray(data) ? data : []);
+    } catch(e) { showToast('โหลด Orders ล้มเหลว: ' + e.message, 'error'); }
+    setLoading(false);
+  };
+
+  useEffect(() => { loadOrders(); }, []);
+
+  const approve = async (orderId) => {
+    setApproving(p => ({...p, [orderId]: true}));
+    try {
+      const res = await api.approveOrder(orderId, noteMap[orderId] || '');
+      showToast('Approve สำเร็จ — ส่ง Token Unlimited ทาง Email แล้ว');
+      await loadOrders();
+    } catch(e) { showToast('Approve ล้มเหลว: ' + e.message, 'error'); }
+    setApproving(p => ({...p, [orderId]: false}));
+  };
+
+  const reject = async (orderId) => {
+    if (!confirm('ต้องการ Reject Order นี้? ระบบจะ Downgrade ทีมกลับเป็น Free Plan')) return;
+    setRejecting(p => ({...p, [orderId]: true}));
+    try {
+      await api.rejectOrder(orderId, noteMap[orderId] || '');
+      showToast('Reject แล้ว — Downgraded เป็น Free Plan', 'error');
+      await loadOrders();
+    } catch(e) { showToast('Reject ล้มเหลว: ' + e.message, 'error'); }
+    setRejecting(p => ({...p, [orderId]: false}));
+  };
+
+  const resend = async (teamId) => {
+    setResending(p => ({...p, [teamId]: true}));
+    try {
+      const res = await api.resendToken(teamId);
+      showToast(`ส่ง Token อีกครั้งไปยัง ${res?.to || 'email'} แล้ว`);
+    } catch(e) { showToast('ส่งซ้ำล้มเหลว: ' + e.message, 'error'); }
+    setResending(p => ({...p, [teamId]: false}));
+  };
+
+  const statusColor = { pending_payment:'var(--amber)', approved:'var(--green)', rejected:'var(--red)', expired:'var(--text3)' };
+  const statusLabel = { pending_payment:'รอชำระเงิน', approved:'อนุมัติแล้ว', rejected:'ปฏิเสธ', expired:'หมดเวลา' };
+
+  const filtered = tab === 'all' ? orders : orders.filter(o => o.status === (tab === 'pending' ? 'pending_payment' : tab));
+
+  return h('div', null,
+    h('div', { className:'page-header' },
+      h('div', null,
+        h('h1', { className:'page-title' }, h(React.Fragment, null, h('span',{className:'ms ms-lg', style:{marginRight:'8px',color:'var(--accent)'}},'admin_panel_settings'), 'Dev Dashboard')),
+        h('p', { className:'page-subtitle' }, 'จัดการ Plan, Token, และการชำระเงิน — Super Admin Only')
+      ),
+      h('button', { className:'btn btn-sm', onClick:()=>loadOrders(), style:{display:'flex',alignItems:'center',gap:'4px'} },
+        h('span',{className:'ms ms-xs'},'refresh'), ' โหลดใหม่'
+      )
+    ),
+    h('div', { className:'tabs', style:{marginBottom:'16px'} },
+      [['pending','รอชำระเงิน'],['approved','อนุมัติแล้ว'],['rejected','ปฏิเสธ/หมดเวลา'],['all','ทั้งหมด']].map(([key,label]) =>
+        h('div', { key, className:`tab${tab===key?' active':''}`, onClick:()=>setTab(key) }, label,
+          key==='pending' && orders.filter(o=>o.status==='pending_payment').length > 0 &&
+            h('span', { style:{marginLeft:'6px',background:'var(--amber)',color:'#fff',borderRadius:'10px',fontSize:'10px',padding:'1px 6px',fontWeight:'700'} },
+              orders.filter(o=>o.status==='pending_payment').length
+            )
+        )
+      )
+    ),
+    loading ? h('div', { className:'card', style:{padding:'40px', textAlign:'center', color:'var(--text3)'} },
+      h('span', { className:'ms ms-xxl', style:{display:'block', marginBottom:'12px', animation:'spin 1s linear infinite'} }, 'autorenew'),
+      'กำลังโหลด...'
+    ) : filtered.length === 0
+      ? h('div', { className:'card' },
+          h('div', { className:'empty' },
+            h('span', { className:'ms ms-xxl', style:{opacity:0.3, display:'block', marginBottom:'14px'} }, 'receipt_long'),
+            h('div', { className:'empty-title' }, 'ไม่มี Order'),
+            h('div', { className:'empty-sub' }, `ไม่พบ Order ที่มีสถานะ "${tab}"`)
+          )
+        )
+      : h('div', { className:'card' },
+          h('div', { className:'table-wrap' },
+            h('table', null,
+              h('thead', null, h('tr', null,
+                h('th', null, 'ทีม'),
+                h('th', null, 'Admin Email'),
+                h('th', null, 'วันที่สร้าง'),
+                h('th', null, 'สถานะ'),
+                h('th', null, 'หมายเหตุ'),
+                h('th', null, 'Action')
+              )),
+              h('tbody', null, filtered.map(order =>
+                h('tr', { key: order.id },
+                  h('td', null, h('div', { style:{fontWeight:'600'} }, order.teamName || order.teamId),
+                    h('div', { style:{fontSize:'11px', color:'var(--text3)', fontFamily:'var(--mono)'} }, order.teamId?.slice(0,8) + '...')
+                  ),
+                  h('td', null, h('span', { style:{fontSize:'13px', color:'var(--text2)'} }, order.adminEmail)),
+                  h('td', null, h('span', { style:{fontSize:'12px', color:'var(--text3)', fontFamily:'var(--mono)'} }, order.createdAt ? new Date(order.createdAt).toLocaleString('th-TH') : '—')),
+                  h('td', null,
+                    h('span', { style:{color: statusColor[order.status]||'var(--text2)', fontWeight:'600', fontSize:'12px'} }, statusLabel[order.status]||order.status)
+                  ),
+                  h('td', null, order.status === 'pending_payment'
+                    ? h('input', { className:'form-input', style:{fontSize:'12px', padding:'4px 8px', width:'150px'},
+                        placeholder:'หมายเหตุ (ไม่บังคับ)', value: noteMap[order.id]||'',
+                        onChange: e => setNoteMap(p=>({...p,[order.id]:e.target.value}))
+                      })
+                    : h('span', { style:{fontSize:'12px',color:'var(--text3)'} }, order.note || '—')
+                  ),
+                  h('td', null,
+                    h('div', { style:{display:'flex', gap:'6px', flexWrap:'wrap'} },
+                      order.status === 'pending_payment' && h(React.Fragment, null,
+                        h('button', {
+                          className:'btn btn-sm', disabled: approving[order.id],
+                          style:{background:'var(--green-bg)',color:'var(--green)',borderColor:'var(--green)',display:'flex',alignItems:'center',gap:'4px'},
+                          onClick: () => approve(order.id)
+                        }, h('span',{className:'ms ms-xs'}, approving[order.id]?'autorenew':'check'), approving[order.id]?'...':'Approve'),
+                        h('button', {
+                          className:'btn btn-sm', disabled: rejecting[order.id],
+                          style:{background:'var(--red-bg)',color:'var(--red)',borderColor:'var(--red)',display:'flex',alignItems:'center',gap:'4px'},
+                          onClick: () => reject(order.id)
+                        }, h('span',{className:'ms ms-xs'}, rejecting[order.id]?'autorenew':'close'), rejecting[order.id]?'...':'Reject')
+                      ),
+                      (order.status === 'approved') && h('button', {
+                        className:'btn btn-sm', disabled: resending[order.teamId],
+                        style:{display:'flex',alignItems:'center',gap:'4px'},
+                        onClick: () => resend(order.teamId)
+                      }, h('span',{className:'ms ms-xs'}, resending[order.teamId]?'autorenew':'send'),
+                        resending[order.teamId]?'กำลังส่ง...':'ส่ง Token อีกครั้ง')
+                    )
+                  )
+                )
+              ))
+            )
+          )
+        )
+  );
+}
+
 // ─── TEAM SELECT PAGE ─────────────────────────────────────────────────────────
 function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, setMembers, setMembersState, myTeams, setCurrentTeam, setPage, showToast, addLog, pendingMembers, setPendingMembers, autoJoinCode, setAutoJoinCode, processInvite, setInviteWaitingTeam }) {
   const [showCreate, setShowCreate] = useState(false);
@@ -4389,76 +4537,72 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
   const [showJoin, setShowJoin] = useState(!!autoJoinCode);
   const [joinErr, setJoinErr] = useState('');
   const [creating, setCreating] = useState(false);
-  // [v24-SUBSCRIPTION] Pricing + Payment state
-  const [showPricing, setShowPricing]   = useState(false);
-  const [pendingTeam, setPendingTeam]   = useState(null);
-  const [showPayment, setShowPayment]   = useState(false);
-  const [payTeam, setPayTeam]           = useState(null);
+  // [v23-PLAN] Plan selection state
+  const [planStep, setPlanStep] = useState('name'); // 'name' | 'plan'
+  const [pendingTeam, setPendingTeam] = useState(null); // team object รอเลือก plan
+  const [selectingPlan, setSelectingPlan] = useState(false);
+  // [v23-PLAN] Upgrade Modal
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeTeam, setUpgradeTeam] = useState(null);
 
   useEffect(() => {
     if (autoJoinCode) { setInviteCode(autoJoinCode); setShowJoin(true); }
   }, [autoJoinCode]);
 
-  // [v24-SUBSCRIPTION] openPricing — build team object แล้วโชว์ PricingModal แทน createTeam ทันที
-  const openPricing = () => {
+  // [v23-PLAN] createTeam — Step 1: สร้างทีม, Step 2: เลือก Plan
+  // Step 1: กรอกชื่อทีม → สร้าง Team + Member → เปิดหน้าเลือก Plan
+  const createTeamStep1 = async () => {
     if (!teamName.trim() || creating) return;
-    const teamIcons  = ['rocket_launch','bolt','target','local_fire_department','diamond','shield','star','science'];
+    setCreating(true);
+    const teamIcons = ['rocket_launch','bolt','target','local_fire_department','diamond','shield','star','science'];
     const teamColors = ['#4f8ef7','#34d399','#f472b6','#a78bfa','#fbbf24','#f87171','#60a5fa','#a3e635'];
     const rndIdx = Math.floor(Math.random()*8);
-    const t = { id:uid(), name:teamName.trim(), icon:teamIcons[rndIdx], color:teamColors[rndIdx], createdBy:currentUser.id, inviteCode:uid().slice(0,8), createdAt:now() };
-    setPendingTeam(t);
-    setShowPricing(true);
-  };
-
-  // [v24-SUBSCRIPTION] shared: insert team + member into GAS + local state
-  const _insertTeamAndMember = async (t) => {
-    const newMember = { id:uid(), teamId:t.id, userId:currentUser.id, role:'admin', joinedAt:now() };
-    await api.insert('teams', t);
-    await api.insert('members', newMember);
-    (setTeamsState||setTeams)(p => [...p, t]);
-    (setMembersState||setMembers)(p => [...p, newMember]);
-    return newMember;
-  };
-
-  // [v24-SUBSCRIPTION] เลือก Free Plan
-  const handleSelectFree = async () => {
-    if (!pendingTeam || creating) return;
-    setCreating(true);
-    const t = pendingTeam;
+    const t = { id: uid(), name: teamName.trim(), icon: teamIcons[rndIdx], color: teamColors[rndIdx], createdBy: currentUser.id, inviteCode: uid().slice(0,8), createdAt: now() };
+    const newMember = { id: uid(), teamId: t.id, userId: currentUser.id, role: 'admin', joinedAt: now() };
     try {
-      await _insertTeamAndMember(t);
-      // fire-and-forget initSubscriptionPlan (Free)
-      api.initSubscriptionPlan(t.id, 'free').catch(e => console.warn('initSubscriptionPlan free:', e.message));
-      setCurrentTeam(t);
-      setShowPricing(false);
-      setShowCreate(false);
-      setTeamName('');
+      await api.insert('teams', t);
+      await api.insert('members', newMember);
+      (setTeamsState || setTeams)(p => [...p, t]);
+      (setMembersState || setMembers)(p => [...p, newMember]);
+      // บันทึก pending team ไว้ รอเลือก Plan
+      setPendingTeam({ team: t, member: newMember });
+      setPlanStep('plan');
+    } catch(e) {
+      showToast(`สร้างทีมล้มเหลว: ${e.message}`, 'error');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  // Step 2: เลือก Plan → เรียก GAS selectPlan → navigate dashboard
+  const selectPlan = async (plan) => {
+    if (!pendingTeam || selectingPlan) return;
+    setSelectingPlan(true);
+    const { team } = pendingTeam;
+    try {
+      const res = await api.selectPlan(team.id, plan, currentUser.email, currentUser.name, team.name);
+      if (plan === 'free') {
+        showToast(`ทีม "${team.name}" สร้างสำเร็จ! Free Plan พร้อมใช้งาน`);
+      } else {
+        // paid_trial — แสดง Popup แจ้ง trial 3 วัน
+        const trialEnd = res?.trialEndAt ? new Date(res.trialEndAt).toLocaleDateString('th-TH') : '3 วัน';
+        showToast(`ทีม "${team.name}" พร้อมใช้งาน — Trial Unlimited ถึง ${trialEnd} กรุณาชำระเงินเพื่อใช้ต่อ`, 'warning');
+      }
+      setCurrentTeam(team);
       setPage('dashboard');
-      showToast(`ทีม "${t.name}" สร้างสำเร็จ! (Free Plan) 🎉`);
+      setPendingTeam(null);
+      setPlanStep('name');
+      setTeamName('');
+      setShowCreate(false);
     } catch(e) {
-      showToast(`สร้างทีมล้มเหลว: ${e.message}`, 'error');
-    } finally { setCreating(false); }
+      showToast(`เลือก Plan ล้มเหลว: ${e.message}`, 'error');
+    } finally {
+      setSelectingPlan(false);
+    }
   };
 
-  // [v24-SUBSCRIPTION] เลือก Unlimit Plan → ไปหน้า Payment
-  const handleSelectUnlimit = async () => {
-    if (!pendingTeam || creating) return;
-    setCreating(true);
-    const t = pendingTeam;
-    try {
-      await _insertTeamAndMember(t);
-      // init sub plan unlimit (pending_payment)
-      api.initSubscriptionPlan(t.id, 'unlimit').catch(e => console.warn('initSubscriptionPlan unlimit:', e.message));
-      setCurrentTeam(t);
-      setShowPricing(false);
-      setShowCreate(false);
-      setTeamName('');
-      setPayTeam(t);
-      setShowPayment(true); // → PaymentPage
-    } catch(e) {
-      showToast(`สร้างทีมล้มเหลว: ${e.message}`, 'error');
-    } finally { setCreating(false); }
-  };
+  // legacy createTeam alias (ไม่ใช้แล้ว — เปลี่ยนเป็น createTeamStep1)
+  const createTeam = createTeamStep1;
 
   const [joining, setJoining] = useState(false);
 
@@ -4576,15 +4720,20 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
         h('button', { className:'btn btn-primary', style:{flex:1, justifyContent:'center'}, onClick:()=>setShowCreate(true) }, '+ สร้างทีมใหม่'),
         h('button', { className:'btn', style:{flex:1, justifyContent:'center'}, onClick:()=>setShowJoin(true) }, 'เข้าร่วมด้วย Code')
       ),
-      showCreate && h('div', { className:'card', style:{marginTop:'16px'} },
+      showCreate && planStep === 'name' && h('div', { className:'card', style:{marginTop:'16px'} },
         h('p', { className:'card-title', style:{marginBottom:'12px'} }, 'สร้างทีมใหม่'),
         h('input', { className:'form-input', value:teamName, onChange:e=>setTeamName(e.target.value), placeholder:'ชื่อทีม...', style:{marginBottom:'10px'},
-          onKeyDown: e => e.key==='Enter' && openPricing() }),
+          onKeyDown: e => e.key==='Enter' && createTeamStep1() }),
         h('div', { style:{display:'flex', gap:'8px'} },
-          h('button', { className:'btn btn-primary', onClick:openPricing, disabled:creating||!teamName.trim() }, creating ? 'กำลังสร้าง...' : h(React.Fragment,null,'ถัดไป ',h('span',{className:'ms ms-xs'},'arrow_forward'))),
-          h('button', { className:'btn', onClick:()=>setShowCreate(false) }, 'ยกเลิก')
+          h('button', { className:'btn btn-primary', onClick:createTeamStep1, disabled:creating||!teamName.trim() }, creating ? 'กำลังสร้าง...' : 'ถัดไป →'),
+          h('button', { className:'btn', onClick:()=>{ setShowCreate(false); setTeamName(''); } }, 'ยกเลิก')
         )
       ),
+      showCreate && planStep === 'plan' && pendingTeam && h(PlanSelectCard, {
+        teamName: pendingTeam.team.name,
+        onSelect: selectPlan,
+        selecting: selectingPlan
+      }),
       showJoin && h('div', { className:'card', style:{marginTop:'16px'} },
         h('p', { className:'card-title', style:{marginBottom:'12px'} }, 'เข้าร่วมทีม'),
         h('input', { className:'form-input', value:inviteCode, onChange:e=>{ setInviteCode(e.target.value); setJoinErr(''); }, placeholder:'Invite Code...', style:{marginBottom:'8px'},
@@ -4608,43 +4757,6 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
           h('button', { className:'btn', onClick:()=>{ setShowJoin(false); setJoinErr(''); setJoining(false); }, disabled:joining }, 'ยกเลิก')
         )
       )
-    ),
-    // [v24-SUBSCRIPTION] PricingModal overlay
-    showPricing && pendingTeam && h(PricingModal, {
-      teamName: pendingTeam.name,
-      creating,
-      onClose: () => { setShowPricing(false); setPendingTeam(null); },
-      onSelectFree:    handleSelectFree,
-      onSelectUnlimit: handleSelectUnlimit
-    }),
-    // [v24-SUBSCRIPTION] PaymentPage (full-screen overlay)
-    showPayment && payTeam && ReactDOM.createPortal(
-      h('div', { style:{position:'fixed',inset:0,zIndex:9999,background:'var(--bg)',overflowY:'auto'} },
-        h(PaymentPage, {
-          currentTeam: payTeam,
-          currentUser,
-          showToast,
-          onPaymentSuccess: ({ tempToken, tokenExpiry }) => {
-            setShowPayment(false);
-            setPayTeam(null);
-            setPage('dashboard');
-            showToast('ส่งสลิปสำเร็จ! ✅ ใช้งาน Unlimit ได้ทันที 3 วัน ระหว่างรอตรวจสอบ', 'success');
-          },
-          onTimeout: async () => {
-            api.cancelPendingPayment(payTeam?.id).catch(()=>{});
-            setShowPayment(false);
-            setPayTeam(null);
-            setPage('dashboard');
-            showToast('หมดเวลาการชำระเงิน — ปรับเป็น Free Plan อัตโนมัติ', 'error');
-          },
-          onCancel: async () => {
-            api.cancelPendingPayment(payTeam?.id).catch(()=>{});
-            setShowPayment(false);
-            setPayTeam(null);
-          }
-        })
-      ),
-      document.getElementById('modal-root') || document.body
     )
   );
 }
@@ -5625,7 +5737,7 @@ function DatePicker({ value, onChange, placeholder, className }) {
 }
 
 // ─── SIDEBAR ─────────────────────────────────────────────────────────────────
-function Sidebar({ navigate, currentPage, navCtx, isAdmin, teamTCs, teamDefects, teamProjects, teamTasks, pendingMembers, currentTeam, sidebarOpen, closeSidebar, isSuperAdminUser }) {
+function Sidebar({ navigate, currentPage, navCtx, isAdmin, isSuperAdminUser, teamTCs, teamDefects, teamProjects, teamTasks, pendingMembers, currentTeam, sidebarOpen, closeSidebar }) {
   const nav = (pg) => { navigate(pg); if (closeSidebar) closeSidebar(); };
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('qah_sidebar_collapsed') === '1'; } catch { return false; } });
   const toggleCollapse = () => setCollapsed(v => { const nv = !v; try { localStorage.setItem('qah_sidebar_collapsed', nv?'1':'0'); } catch {} return nv; });
@@ -5678,11 +5790,11 @@ function Sidebar({ navigate, currentPage, navCtx, isAdmin, teamTCs, teamDefects,
         h('span',{className:'ms ms-sm',style:{opacity:0.8,flexShrink:0}},'calendar_month'),
         h('span',{className:'nav-item-text'},'Plan')
       ),
-      // [v24-SUBSCRIPTION] Super Admin nav item
-      isSuperAdminUser && h('div', { className:`nav-item${currentPage==='super-admin'?' active':''}`, onClick:()=>nav('super-admin'), title:'Super Admin Panel',
+      // [v23-PLAN] Dev Dashboard — Super Admin only
+      isSuperAdminUser && h('div', { className:`nav-item${currentPage==='dev-dashboard'?' active':''}`, onClick:()=>nav('dev-dashboard'), title:'Dev Dashboard',
         style:{borderTop:'1px solid var(--border)',marginTop:'4px',paddingTop:'10px'} },
         h('span',{className:'ms ms-sm',style:{opacity:0.8,flexShrink:0,color:'var(--accent)'}},'admin_panel_settings'),
-        h('span',{className:'nav-item-text',style:{color:'var(--accent)',fontWeight:'600'}},'Super Admin')
+        h('span',{className:'nav-item-text',style:{color:'var(--accent)'}},'Dev Dashboard')
       ),
     ),
     h('div', { className: 'sidebar-section' },
@@ -6449,7 +6561,7 @@ function DashboardPage({ teamTCs, teamDefects, teamProjects, teamTasks, navigate
 }
 
 // ─── PROJECTS PAGE ────────────────────────────────────────────────────────────
-function ProjectsPage({ teamProjects, setProjects, tasks, setTasks, testCases, setTestCases, defects, setDefects, setProjectsState, setTasksState, setTestCasesState, setDefectsState, teamTasks, currentTeam, currentUser, canEdit, canDelete, showToast, addLog, navigate, USE_GAS, teamPlan, setShowLimitModal }) {
+function ProjectsPage({ teamProjects, setProjects, tasks, setTasks, testCases, setTestCases, defects, setDefects, setProjectsState, setTasksState, setTestCasesState, setDefectsState, teamTasks, currentTeam, currentUser, canEdit, canDelete, showToast, addLog, navigate, USE_GAS }) {
   const [showModal, setShowModal] = useState(false);
   const [editProj, setEditProj] = useState(null);
   const [form, setForm] = useState({ name:'', description:'', status:'Active', startDate:'', endDate:'', tcMode:'standard' });
@@ -6458,18 +6570,7 @@ function ProjectsPage({ teamProjects, setProjects, tasks, setTasks, testCases, s
 
   const filtered = teamProjects.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
 
-  // [v24-SUBSCRIPTION] ตรวจ Free Plan limit ก่อนสร้าง Project ใหม่
-  const openCreate = async () => {
-    if (!editProj) {
-      const check = await checkLimitBeforeInsert(currentTeam?.id, 'projects', teamPlan);
-      if (!check.allowed) {
-        if (setShowLimitModal) setShowLimitModal({ sheet:'projects', limit: check.limit || FREE_PLAN_LIMITS.projects });
-        else showToast(`ถึงขีดจำกัด Free Plan — Projects สูงสุด ${check.limit || FREE_PLAN_LIMITS.projects} โปรเจกต์`, 'error');
-        return;
-      }
-    }
-    setForm({name:'',description:'',status:'Active',startDate:'',endDate:'',tcMode:'standard'}); setEditProj(null); setShowModal(true);
-  };
+  const openCreate = () => { setForm({name:'',description:'',status:'Active',startDate:'',endDate:'',tcMode:'standard'}); setEditProj(null); setShowModal(true); };
   const openEdit = (p) => { setForm({name:p.name,description:p.description||'',status:p.status||'Active',startDate:p.startDate||'',endDate:p.endDate||'',tcMode:p.tcMode||'standard'}); setEditProj(p); setShowModal(true); };
 
   const save = () => {
@@ -7203,7 +7304,7 @@ function TaskDashboard({ task, project, taskTCs, taskDefects, defects }) {
 }
 
 // ─── PROJECT DETAIL PAGE ──────────────────────────────────────────────────────
-function ProjectDetailPage({ navCtx, projects, tasks, setTasks, testCases, setTestCases, defects, setDefects, setTasksState, setTestCasesState, setDefectsState, teamTCs, teamTasks, currentUser, currentTeam, canEdit, canDelete, showToast, addLog, navigate, USE_GAS, teamPlan, setShowLimitModal }) {
+function ProjectDetailPage({ navCtx, projects, tasks, setTasks, testCases, setTestCases, defects, setDefects, setTasksState, setTestCasesState, setDefectsState, teamTCs, teamTasks, currentUser, currentTeam, canEdit, canDelete, showToast, addLog, navigate, USE_GAS }) {
   const project = projects.find(p => p.id === navCtx.projectId);
   const [showModal, setShowModal] = useState(false);
   const [editTask, setEditTask] = useState(null);
@@ -7230,16 +7331,7 @@ function ProjectDetailPage({ navCtx, projects, tasks, setTasks, testCases, setTe
     setShowModal(false);
   };
 
-  // [v24-SUBSCRIPTION] guard สร้าง Task ใหม่
-  const openCreate = async () => {
-    const check = await checkLimitBeforeInsert(currentTeam?.id, 'tasks', teamPlan);
-    if (!check.allowed) {
-      if (setShowLimitModal) setShowLimitModal({ sheet:'tasks', limit: check.limit || FREE_PLAN_LIMITS.tasks });
-      else showToast(`ถึงขีดจำกัด Free Plan — Tasks สูงสุด ${check.limit || FREE_PLAN_LIMITS.tasks}`, 'error');
-      return;
-    }
-    setForm({name:'',description:'',status:'Active',priority:'Medium',assignee:''}); setEditTask(null); setShowModal(true);
-  };
+  const openCreate = () => { setForm({name:'',description:'',status:'Active',priority:'Medium',assignee:''}); setEditTask(null); setShowModal(true); };
   const openEdit = (t) => { setForm({name:t.name,description:t.description||'',status:t.status||'Active',priority:t.priority||'Medium',assignee:t.assignee||''}); setEditTask(t); setShowModal(true); };
 
   const deleteTask = async (t) => {
@@ -7353,7 +7445,7 @@ function ProjectDetailPage({ navCtx, projects, tasks, setTasks, testCases, setTe
 }
 
 // ─── TASK DETAIL PAGE (Test Cases) ───────────────────────────────────────────
-function TaskDetailPage({ navCtx, setNavCtx, projects, tasks, testCases, setTestCases, defects, setDefects, setTestCasesState, setDefectsState, currentUser, users, currentTeam, canEdit, canDelete, showToast, addLog, navigate, openDefectModal, USE_GAS, pendingTcStatusRef, teamPlan, setShowLimitModal }) {
+function TaskDetailPage({ navCtx, setNavCtx, projects, tasks, testCases, setTestCases, defects, setDefects, setTestCasesState, setDefectsState, currentUser, users, currentTeam, canEdit, canDelete, showToast, addLog, navigate, openDefectModal, USE_GAS, pendingTcStatusRef }) {
   const task = tasks.find(t => t.id === navCtx.taskId);
   const project = projects.find(p => p.id === navCtx.projectId);
   const [tab, setTab] = useState('testcases');
@@ -7703,11 +7795,7 @@ function TaskDetailPage({ navCtx, setNavCtx, projects, tasks, testCases, setTest
     h('div',{className:'page-header'},
       h('div',null,h('h1',{className:'page-title'},task.name),h('p',{className:'page-subtitle'},`${taskTCs.length} Test Cases • Pass Rate: ${passRate}%`)),
       h('div',{className:'page-actions'},
-        canEdit&&h('button',{className:'btn btn-primary',onClick:async()=>{
-          const check = await checkLimitBeforeInsert(currentTeam?.id,'testCases',teamPlan);
-          if(!check.allowed){ if(setShowLimitModal) setShowLimitModal({sheet:'testCases',limit:check.limit||FREE_PLAN_LIMITS.testCases}); else showToast(`ถึงขีดจำกัด Free Plan — Test Cases สูงสุด ${check.limit||FREE_PLAN_LIMITS.testCases}`,'error'); return; }
-          setEditTC(null);setShowTC(true);
-        }},'+  New TC'),
+        canEdit&&h('button',{className:'btn btn-primary',onClick:()=>{setEditTC(null);setShowTC(true);}},'+  New TC'),
         h('button',{className:'btn',onClick:downloadTemplate},'Download Template'),
         canEdit&&h('label',{className:'btn',style:{cursor:'pointer'}},h('input',{type:'file',accept:'.xlsx,.xls',onChange:importTCs}),'Import Excel'),
         h('button',{className:'btn',onClick:()=>exportTCs('task')},'Export Task'),
@@ -8733,7 +8821,7 @@ function DefectsInTC({ tc, defects, setDefects, testCases, currentUser, canEdit,
 }
 
 // ─── DEFECTS PAGE ─────────────────────────────────────────────────────────────
-function DefectsPage({ teamDefects, setDefects, setDefectsState, testCases, teamTCs, teamTasks, teamProjects, currentUser, users, canEdit, canDelete, showToast, addLog, openDefectModal, navigate, USE_GAS, pendingDefStatusRef, currentTeam, teamPlan, setShowLimitModal }) {
+function DefectsPage({ teamDefects, setDefects, setDefectsState, testCases, teamTCs, teamTasks, teamProjects, currentUser, users, canEdit, canDelete, showToast, addLog, openDefectModal, navigate, USE_GAS, pendingDefStatusRef }) {
   const [search, setSearch] = useState('');
   const [filterSev, setFilterSev] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -8746,17 +8834,6 @@ function DefectsPage({ teamDefects, setDefects, setDefectsState, testCases, team
   const toggleDefSort = (field) => {
     if (defSortField === field) setDefSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setDefSortField(field); setDefSortDir('asc'); }
-  };
-
-  // [v24-SUBSCRIPTION] guard สร้าง Defect ใหม่
-  const openNewDefect = async (tcId) => {
-    const check = await checkLimitBeforeInsert(currentTeam?.id, 'defects', teamPlan);
-    if (!check.allowed) {
-      if (setShowLimitModal) setShowLimitModal({ sheet:'defects', limit: check.limit || FREE_PLAN_LIMITS.defects });
-      else showToast(`ถึงขีดจำกัด Free Plan — Defects สูงสุด ${check.limit || FREE_PLAN_LIMITS.defects}`, 'error');
-      return;
-    }
-    openDefectModal(null, tcId||null, teamTCs);
   };
 
   const filtered = teamDefects.filter(d =>
@@ -8836,7 +8913,7 @@ function DefectsPage({ teamDefects, setDefects, setDefectsState, testCases, team
       h('div',{className:'flex'},
         selected.length>0&&h('button',{className:'btn',onClick:exportDefects},'Export ('+selected.length+')'),
         h('button',{className:'btn',onClick:exportDefects},'Export All'),
-        canEdit&&h('button',{className:'btn btn-primary',onClick:()=>openNewDefect()},'+  New Defect')
+        canEdit&&h('button',{className:'btn btn-primary',onClick:()=>openDefectModal(null,null,teamTCs)},'+  New Defect')
       )
     ),
     h('div',{className:'stats-grid'},
@@ -8854,7 +8931,7 @@ function DefectsPage({ teamDefects, setDefects, setDefectsState, testCases, team
       ? h('div',{className:'empty'},
           h('span',{className:'ms ms-xxl',style:{opacity:0.4,display:'block',marginBottom:'14px',color:'var(--text3)'}},'bug_report'),
           h('div',{className:'empty-title'},'ไม่พบ Defect'),
-          canEdit&&h('button',{className:'btn btn-primary',style:{marginTop:'12px'},onClick:()=>openNewDefect()},'+  New Defect')
+          canEdit&&h('button',{className:'btn btn-primary',style:{marginTop:'12px'},onClick:()=>openDefectModal(null,null,teamTCs)},'+  New Defect')
         )
       : h('div',{className:'table-wrap'},
           h('table',null,
@@ -9125,27 +9202,32 @@ function TeamSettingsPage({ currentTeam, currentUser, setTeams, members, setMemb
     ),
 
     tab==='pending'&&isAdmin&&h(PendingApprovalTab,{pendingMembers,currentTeam,users,approvePending,rejectPending}),
-    tab==='system'&&isAdmin&&h(SystemSettingsTab,{currentUser,showToast})
+    tab==='system'&&isAdmin&&h(SystemSettingsTab,{currentUser,currentTeam,showToast})
   );
 }
 
 // ─── [v23] SYSTEM SETTINGS TAB (Admin only) ─────────────────────────────────
-function SystemSettingsTab({ currentUser, showToast }) {
+function SystemSettingsTab({ currentUser, currentTeam, showToast }) {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lockedUsers, setLockedUsers] = useState([]);
   const [unlocking, setUnlocking] = useState({});
 
   // Session timeout settings
-  const [idleMin, setIdleMin]   = useState(120);  // default 2h
-  const [absHours, setAbsHours] = useState(12);   // default 12h
-  // Login lockout settings
-  const [lockMin, setLockMin]   = useState(5);    // default 5 min
-  const [maxFail, setMaxFail]   = useState(5);    // default 5
+  const [idleMin, setIdleMin]   = useState(120);
+  const [absHours, setAbsHours] = useState(12);
+  const [lockMin, setLockMin]   = useState(5);
+  const [maxFail, setMaxFail]   = useState(5);
+
+  // [v23-PLAN] Plan/Token state
+  const [planInfo, setPlanInfo]       = useState(null);
+  const [authToken, setAuthToken_]    = useState('');
+  const [tokenSaving, setTokenSaving] = useState(false);
+  const [upgrading, setUpgrading]     = useState(false);
+  const [planLoading, setPlanLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    // โหลด settings จาก GAS
     api.rawWrite({ action:'getSystemSettings', token:getAuthToken() })
       .then(res => {
         if (res && res.ok && res.data) {
@@ -9156,9 +9238,16 @@ function SystemSettingsTab({ currentUser, showToast }) {
         }
       }).catch(()=>{})
       .finally(() => setLoading(false));
-    // โหลด locked users
     loadLockedUsers();
-  }, []);
+    // [v23-PLAN] โหลด Plan info
+    if (currentTeam) {
+      setPlanLoading(true);
+      api.getMyPlan(currentTeam.id)
+        .then(data => { setPlanInfo(data || {}); })
+        .catch(() => setPlanInfo({}))
+        .finally(() => setPlanLoading(false));
+    }
+  }, [currentTeam?.id]); // eslint-disable-line
 
   const loadLockedUsers = () => {
     api.rawWrite({ action:'getLockedUsers', token:getAuthToken() })
@@ -9177,7 +9266,6 @@ function SystemSettingsTab({ currentUser, showToast }) {
       });
       if (!res || res.ok === false) { showToast(res?.error || 'บันทึกไม่สำเร็จ', 'error'); }
       else {
-        // บันทึกใน localStorage เพื่อให้ checkSessionTimeout ใช้ค่าใหม่ทันที
         try {
           localStorage.setItem('qah_idle_timeout_min',  String(idleMin));
           localStorage.setItem('qah_abs_timeout_hours', String(absHours));
@@ -9195,7 +9283,6 @@ function SystemSettingsTab({ currentUser, showToast }) {
       if (!res || res.ok === false) { showToast(res?.error || 'ปลดล็อคไม่สำเร็จ', 'error'); }
       else {
         showToast(`ปลดล็อค ${email} สำเร็จ — สามารถ Login ได้ทันที`);
-        // ล้าง client-side lockout ด้วย (ถ้าเป็น email เดียวกัน)
         try { sessionStorage.removeItem('qah_login_locked_until'); sessionStorage.removeItem('qah_login_fail_count'); } catch {}
         setLockedUsers(p => p.filter(u => u.email !== email));
       }
@@ -9203,11 +9290,124 @@ function SystemSettingsTab({ currentUser, showToast }) {
     setUnlocking(p => ({...p, [email]: false}));
   };
 
+  // [v23-PLAN] บันทึก Token ใน System Settings
+  const saveToken = async () => {
+    if (!authToken.trim()) { showToast('กรุณากรอก Auth Token', 'error'); return; }
+    if (!currentTeam) { showToast('ไม่พบ Team', 'error'); return; }
+    setTokenSaving(true);
+    try {
+      await api.saveSystemToken(currentTeam.id, authToken.trim());
+      showToast('บันทึก Token สำเร็จ — Unlimited Plan พร้อมใช้งาน');
+      setPlanInfo(p => ({ ...p, token: authToken.trim(), status:'active', plan: p?.plan === 'paid_trial' ? 'paid' : p?.plan }));
+    } catch(e) { showToast('บันทึก Token ล้มเหลว: ' + e.message, 'error'); }
+    setTokenSaving(false);
+  };
+
+  // [v23-PLAN] Upgrade Free → Paid
+  const upgradeToPaid = async () => {
+    if (!currentTeam) return;
+    setUpgrading(true);
+    try {
+      const res = await api.upgradePlan(currentTeam.id, currentUser.email, currentUser.name, currentTeam.name);
+      const trialEnd = res?.trialEndAt ? new Date(res.trialEndAt).toLocaleDateString('th-TH') : '3 วัน';
+      showToast(`Upgrade สำเร็จ — Trial Unlimited ถึง ${trialEnd} ชำระเงินเพื่อรับ Token Unlimited ทาง Email`,'warning');
+      setPlanInfo({ plan:'paid_trial', status:'trial', trialEndAt: res?.trialEndAt });
+    } catch(e) { showToast('Upgrade ล้มเหลว: ' + e.message, 'error'); }
+    setUpgrading(false);
+  };
+
+  const planLabel = (p) => {
+    if (!p) return '—';
+    if (p === 'free')        return '🟢 Free Plan';
+    if (p === 'paid_trial')  return '🟡 Unlimited Trial';
+    if (p === 'paid')        return '✅ Unlimited Plan';
+    return p;
+  };
+
   if (loading) return h('div',{className:'card',style:{padding:'32px',textAlign:'center',color:'var(--text3)'}},
     h('span',{className:'ms ms-lg',style:{display:'block',marginBottom:'8px'}},'settings'),h('div',null,'กำลังโหลด...')
   );
 
   return h('div',null,
+
+    // ── [v23-PLAN] Plan & Token Card ──
+    h('div',{className:'card',style:{marginBottom:'16px',border:'1px solid var(--accent)'}},
+      h('div',{className:'card-header'},
+        h('h3',{className:'card-title',style:{display:'flex',alignItems:'center',gap:'8px'}},
+          h('span',{className:'ms ms-sm',style:{color:'var(--accent)'}},'workspace_premium'),
+          'Plan & Token'
+        )
+      ),
+      planLoading
+        ? h('div',{style:{padding:'20px',textAlign:'center',color:'var(--text3)'}},'กำลังโหลด Plan...')
+        : h('div',{style:{padding:'16px 20px'}},
+            // สถานะ Plan ปัจจุบัน
+            h('div',{style:{display:'flex',alignItems:'center',gap:'12px',padding:'12px 16px',background:'var(--bg3)',borderRadius:'var(--r2)',marginBottom:'16px'}},
+              h('div',{style:{flex:1}},
+                h('div',{style:{fontSize:'11px',color:'var(--text3)',fontWeight:'600',textTransform:'uppercase',letterSpacing:'1px',marginBottom:'4px'}},'Plan ปัจจุบัน'),
+                h('div',{style:{fontWeight:'700',fontSize:'16px'}}, planLabel(planInfo?.plan)),
+                planInfo?.plan === 'paid_trial' && planInfo?.trialEndAt &&
+                  h('div',{style:{fontSize:'12px',color:'var(--amber)',marginTop:'4px'}},
+                    `⏱ Trial สิ้นสุด: ${new Date(planInfo.trialEndAt).toLocaleDateString('th-TH')}`
+                  ),
+                planInfo?.status === 'not_selected' &&
+                  h('div',{style:{fontSize:'12px',color:'var(--text3)',marginTop:'4px'}},'ยังไม่ได้เลือก Plan')
+              ),
+              // ปุ่ม Upgrade (แสดงเฉพาะ Free Plan)
+              planInfo?.plan === 'free' && h('button',{
+                className:'btn btn-sm',
+                style:{background:'var(--amber)',color:'#fff',border:'none',display:'flex',alignItems:'center',gap:'4px',flexShrink:0},
+                onClick: upgradeToPaid, disabled: upgrading
+              }, h('span',{className:'ms ms-xs'}, upgrading?'autorenew':'upgrade'),
+                upgrading ? 'กำลัง Upgrade...' : 'Upgrade เป็น Unlimited'
+              )
+            ),
+
+            // Token Update (แสดงเฉพาะ paid / paid_trial)
+            (planInfo?.plan === 'paid' || planInfo?.plan === 'paid_trial') && h('div',null,
+              h('div',{style:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'8px'}},
+                h('span',{className:'ms ms-sm',style:{color:'var(--green)'}},'key'),
+                h('span',{style:{fontWeight:'600',fontSize:'14px'}},'Update Auth Token'),
+                planInfo?.status === 'trial' &&
+                  h('span',{className:'badge',style:{background:'var(--amber-bg)',color:'var(--amber)',borderColor:'var(--amber)',fontSize:'10px'}},'Trial')
+              ),
+              h('p',{style:{fontSize:'12px',color:'var(--text2)',marginBottom:'10px',lineHeight:'1.7'}},
+                planInfo?.status === 'trial'
+                  ? 'กรอก Token Unlimited ที่ได้รับทาง Email (หลัง Dev อนุมัติการชำระเงิน) เพื่อเปิดใช้งานแบบถาวร'
+                  : 'กรอก Token ใหม่ที่ได้รับจาก Dev เพื่ออัพเดทสิทธิ์'
+              ),
+              h('div',{style:{display:'flex',gap:'8px',alignItems:'center'}},
+                h('input',{
+                  className:'form-input', type:'text',
+                  placeholder:'Auth Token (จาก Email ที่ได้รับ)',
+                  value: authToken,
+                  onChange: e => setAuthToken_(e.target.value),
+                  style:{fontFamily:'var(--mono)',fontSize:'13px',letterSpacing:'1px',flex:1}
+                }),
+                h('button',{
+                  className:'btn btn-primary', onClick: saveToken, disabled: tokenSaving || !authToken.trim(),
+                  style:{flexShrink:0,display:'flex',alignItems:'center',gap:'4px'}
+                }, h('span',{className:'ms ms-xs'}, tokenSaving?'autorenew':'save'),
+                  tokenSaving ? 'บันทึก...' : 'บันทึก Token'
+                )
+              ),
+              // Token ปัจจุบัน (masked)
+              planInfo?.token && h('div',{style:{marginTop:'8px',fontSize:'11px',color:'var(--text3)'}},
+                'Token ปัจจุบัน: ',
+                h('span',{style:{fontFamily:'var(--mono)',color:'var(--green)'}},
+                  planInfo.token.slice(0,8) + '••••••••' + planInfo.token.slice(-4)
+                )
+              )
+            ),
+
+            // Free info box
+            planInfo?.plan === 'free' && h('div',{style:{background:'var(--bg4)',borderRadius:'var(--r)',padding:'10px 14px',fontSize:'12px',color:'var(--text2)',marginTop:'8px'}},
+              h('span',{className:'ms ms-xs',style:{marginRight:'4px',color:'var(--text3)'}},'info'),
+              'Free Plan: Project 1 / Task 2 / Test Case 30 / Defect 10'
+            )
+          )
+    ),
+
     // ── Login Security ──
     h('div',{className:'card',style:{marginBottom:'16px'}},
       h('div',{className:'card-header'},
@@ -9246,7 +9446,7 @@ function SystemSettingsTab({ currentUser, showToast }) {
           'Session Timeout'
         )
       ),
-      h('div',{style:{padding:'16px 20px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px'}}),
+      h('div',{style:{padding:'16px 20px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px'}},
         h('div',{className:'form-group'},
           h('label',{className:'form-label'},
             h('span',{className:'ms ms-xs',style:{marginRight:'4px'}},'bedtime'), 'Idle Timeout (ไม่มี Activity)'
@@ -9264,7 +9464,8 @@ function SystemSettingsTab({ currentUser, showToast }) {
             h('input',{className:'form-input',type:'number',min:1,max:72,value:absHours,onChange:e=>setAbsHours(parseInt(e.target.value,10)||12),style:{width:'80px'}}),
             h('span',{style:{fontSize:'12px',color:'var(--text3)'}},`ชั่วโมง = ${absHours} ชม.`)
           )
-        ),
+        )
+      ),
       h('div',{style:{padding:'0 20px 16px'}},
         h('div',{style:{background:'var(--amber-bg)',border:'1px solid var(--amber)',borderRadius:'var(--r)',padding:'8px 12px',fontSize:'12px',color:'var(--text2)',display:'flex',alignItems:'center',gap:'6px'}},
           h('span',{className:'ms ms-xs',style:{color:'var(--amber)'}},'info'),
@@ -9323,7 +9524,6 @@ function SystemSettingsTab({ currentUser, showToast }) {
     )
   );
 }
-
 // ─── PENDING APPROVAL SUB-COMPONENT ──────────────────────────────────────────
 function PendingApprovalTab({ pendingMembers, currentTeam, users, approvePending, rejectPending }) {
   const [approveRoles, setApproveRoles] = useState({});
@@ -10348,553 +10548,6 @@ function PlanPage({ currentTeam, currentUser, teamPlans, setPlans, setPlansState
       onConfirm: () => deletePlan(delConfirm),
       onClose: () => setDelConfirm(null)
     })
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// [v24-SUBSCRIPTION] React Components
-// ═══════════════════════════════════════════════════════════════════
-
-// ── PricingModal — แสดงให้เลือก Free / Unlimit เมื่อสร้างทีม ─────────────────
-function PricingModal({ teamName, onSelectFree, onSelectUnlimit, onClose, creating }) {
-  const [selected, setSelected] = useState('free');
-  return h('div', { className:'modal-overlay', onClick:e=>{ if(e.target.className==='modal-overlay') onClose(); } },
-    h('div', { className:'modal', style:{maxWidth:'620px',maxHeight:'92vh',overflowY:'auto'} },
-      h('div', { className:'modal-header' },
-        h('span', { className:'modal-title', style:{display:'flex',alignItems:'center',gap:'8px'} },
-          h('span',{className:'ms ms-sm'},'workspace_premium'), 'เลือก Plan สำหรับทีม'
-        ),
-        h('button', { className:'modal-close', onClick:onClose }, h('span',{className:'ms ms-sm'},'close'))
-      ),
-      h('div', { className:'modal-body' },
-        teamName && h('div', { style:{fontSize:'13px',color:'var(--text2)',marginBottom:'16px',display:'flex',alignItems:'center',gap:'6px',background:'var(--bg3)',padding:'10px 14px',borderRadius:'var(--r)',border:'1px solid var(--border)'} },
-          h('span',{className:'ms ms-xs'},'group'), 'ทีมใหม่:', h('strong',{style:{color:'var(--text)',marginLeft:'4px'}}, teamName)
-        ),
-        h('div', { className:'pricing-grid' },
-          // ── FREE CARD ──
-          h('div', {
-            className:`pricing-card${selected==='free'?' selected':''}`,
-            onClick:()=>setSelected('free')
-          },
-            h('div',{className:'pricing-icon'},'🧪'),
-            h('div',{className:'pricing-name'},'Free Plan'),
-            h('div',{className:'pricing-price'},'ฟรี'),
-            h('div',{className:'pricing-period'},'ตลอดไป — ไม่มีค่าใช้จ่าย'),
-            h('ul',{className:'pricing-features'},
-              h('li',null,h('span',{className:'ms ms-xs',style:{color:'var(--amber)'}},'folder'),' Projects ',h('span',{className:'limit-badge'},'สูงสุด 1')),
-              h('li',null,h('span',{className:'ms ms-xs',style:{color:'var(--amber)'}},'assignment'),' Tasks ',h('span',{className:'limit-badge'},'สูงสุด 2')),
-              h('li',null,h('span',{className:'ms ms-xs',style:{color:'var(--amber)'}},'science'),' Test Cases ',h('span',{className:'limit-badge'},'สูงสุด 30')),
-              h('li',null,h('span',{className:'ms ms-xs',style:{color:'var(--amber)'}},'bug_report'),' Defects ',h('span',{className:'limit-badge'},'สูงสุด 10')),
-              h('li',null,h('span',{className:'ms ms-xs',style:{color:'var(--green)'}},'check_circle'),' Members ไม่จำกัด'),
-              h('li',null,h('span',{className:'ms ms-xs',style:{color:'var(--green)'}},'check_circle'),' Reports & Export')
-            )
-          ),
-          // ── UNLIMIT CARD ──
-          h('div', {
-            className:`pricing-card unlimit-card${selected==='unlimit'?' selected':''}`,
-            onClick:()=>setSelected('unlimit')
-          },
-            h('span',{className:'pricing-badge pricing-badge-popular'},'🔥 Popular'),
-            h('div',{className:'pricing-icon'},'🚀'),
-            h('div',{className:'pricing-name'},'Unlimit Plan'),
-            h('div',{className:'pricing-price unlimit-price'},'ติดต่อสอบถาม'),
-            h('div',{className:'pricing-period'},'ชำระผ่านการโอนเงิน + แนบสลิป'),
-            h('ul',{className:'pricing-features'},
-              h('li',null,h('span',{className:'ms ms-xs',style:{color:'var(--green)'}},'all_inclusive'),' Projects ',h('span',{className:'unlimit-badge'},'∞')),
-              h('li',null,h('span',{className:'ms ms-xs',style:{color:'var(--green)'}},'all_inclusive'),' Tasks ',h('span',{className:'unlimit-badge'},'∞')),
-              h('li',null,h('span',{className:'ms ms-xs',style:{color:'var(--green)'}},'all_inclusive'),' Test Cases ',h('span',{className:'unlimit-badge'},'∞')),
-              h('li',null,h('span',{className:'ms ms-xs',style:{color:'var(--green)'}},'all_inclusive'),' Defects ',h('span',{className:'unlimit-badge'},'∞')),
-              h('li',null,h('span',{className:'ms ms-xs',style:{color:'var(--cyan)'}},'timer'),' สิทธิ์ทันที 3 วัน ระหว่างรอตรวจสอบ'),
-              h('li',null,h('span',{className:'ms ms-xs',style:{color:'var(--green)'}},'support'),' Priority Support')
-            )
-          )
-        ),
-        selected==='unlimit' && h('div', { style:{background:'var(--amber-bg)',border:'1px solid var(--amber)',borderRadius:'8px',padding:'10px 14px',fontSize:'12px',color:'var(--amber)',display:'flex',alignItems:'flex-start',gap:'8px',marginTop:'4px'} },
-          h('span',{className:'ms ms-xs',style:{flexShrink:0,marginTop:'1px'}},'info'),
-          h('span',null,'คุณมีเวลา ',h('strong',null,'30 นาที'),' ในการแนบสลิปชำระเงิน หากหมดเวลาจะถูกปรับเป็น Free Plan อัตโนมัติ')
-        )
-      ),
-      h('div', { className:'modal-footer' },
-        h('button', { className:'btn', onClick:onClose, disabled:creating }, 'ยกเลิก'),
-        h('button', {
-          className:'btn btn-primary',
-          style: selected==='unlimit' ? {background:'var(--amber)',borderColor:'var(--amber)',color:'#000',fontWeight:'700'} : {},
-          onClick: selected==='free' ? onSelectFree : onSelectUnlimit,
-          disabled: creating
-        },
-          creating
-            ? h(React.Fragment,null,h('span',{className:'ms ms-xs',style:{animation:'spin 0.8s linear infinite',display:'inline-block',marginRight:'6px'}},'refresh'),'กำลังสร้าง...')
-            : selected==='free'
-              ? h(React.Fragment,null,h('span',{className:'ms ms-xs'},'check_circle'),' เริ่มใช้ Free Plan')
-              : h(React.Fragment,null,h('span',{className:'ms ms-xs'},'workspace_premium'),' เลือก Unlimit Plan')
-        )
-      )
-    )
-  );
-}
-
-// ── PaymentPage — หน้าชำระเงิน + Countdown 30 นาที + Slip Upload ─────────────
-function PaymentPage({ currentTeam, currentUser, onPaymentSuccess, onTimeout, onCancel, showToast }) {
-  const TIMEOUT_SEC = 30 * 60;
-  const [secondsLeft, setSecondsLeft] = useState(TIMEOUT_SEC);
-  const [slipImg, setSlipImg]         = useState(null);
-  const [slipNote, setSlipNote]       = useState('');
-  const [amount, setAmount]           = useState('');
-  const [submitting, setSubmitting]   = useState(false);
-  const [errMsg, setErrMsg]           = useState('');
-  const timerRef = useRef(null);
-
-  useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setSecondsLeft(s => {
-        if (s <= 1) { clearInterval(timerRef.current); onTimeout(); return 0; }
-        return s - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timerRef.current);
-  }, []);
-
-  // paste from clipboard
-  useEffect(() => {
-    const handlePaste = (e) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      for (const item of items) {
-        if (item.type.startsWith('image/')) {
-          const reader = new FileReader();
-          reader.onload = (ev) => { setSlipImg(ev.target.result); setErrMsg(''); };
-          reader.readAsDataURL(item.getAsFile());
-          break;
-        }
-      }
-    };
-    document.addEventListener('paste', handlePaste);
-    return () => document.removeEventListener('paste', handlePaste);
-  }, []);
-
-  const mins = Math.floor(secondsLeft / 60);
-  const secs = secondsLeft % 60;
-  const isUrgent = secondsLeft < 5 * 60;
-
-  const handleSlipFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { setErrMsg('กรุณาอัปโหลดไฟล์รูปภาพเท่านั้น'); return; }
-    if (file.size > 5 * 1024 * 1024) { setErrMsg('ไฟล์ใหญ่เกิน 5MB'); return; }
-    const reader = new FileReader();
-    reader.onload = (ev) => { setSlipImg(ev.target.result); setErrMsg(''); };
-    reader.readAsDataURL(file);
-  };
-
-  const submitSlip = async () => {
-    if (!slipImg) { setErrMsg('กรุณาแนบสลิปการโอนเงิน'); return; }
-    if (!amount.trim()) { setErrMsg('กรุณากรอกจำนวนเงิน'); return; }
-    setSubmitting(true); setErrMsg('');
-    try {
-      clearInterval(timerRef.current);
-      const base64 = slipImg.includes(',') ? slipImg.split(',')[1] : slipImg;
-      const res = await api.submitPaymentSlip(currentTeam.id, base64, slipNote, amount);
-      onPaymentSuccess({ tempToken: res.tempToken, tokenExpiry: res.tokenExpiry });
-    } catch(e) {
-      setErrMsg(e.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่');
-      setSubmitting(false);
-    }
-  };
-
-  return h('div', { style:{minHeight:'100vh',background:'var(--bg)',display:'flex',flexDirection:'column',alignItems:'center',padding:'40px 20px'} },
-    h('div', { style:{width:'100%',maxWidth:'520px'} },
-      // Header
-      h('div', { style:{textAlign:'center',marginBottom:'28px'} },
-        h('div',{style:{fontSize:'48px',marginBottom:'12px'}},'💳'),
-        h('h2',{style:{fontWeight:'800',fontSize:'22px',marginBottom:'6px'}},'ชำระเงิน Unlimit Plan'),
-        h('p',{style:{color:'var(--text3)',fontSize:'13px'}}, 'ทีม: ', h('strong',{style:{color:'var(--text)'}}, currentTeam?.name))
-      ),
-
-      // Countdown
-      h('div', { style:{background:'var(--bg2)',border:`2px solid ${isUrgent?'var(--red)':'var(--amber)'}`,borderRadius:'12px',padding:'20px',marginBottom:'24px',textAlign:'center'} },
-        h('div',{style:{fontSize:'11px',color:'var(--text3)',marginBottom:'12px',letterSpacing:'1px',textTransform:'uppercase'}},'⏱ เวลาที่เหลือในการชำระเงิน'),
-        h('div',{className:'countdown-wrap'},
-          h('div',{className:'countdown-unit'},
-            h('span',{className:`countdown-num${isUrgent?' urgent':''}`}, String(mins).padStart(2,'0')),
-            h('div',{className:'countdown-label'},'นาที')
-          ),
-          h('span',{style:{fontSize:'34px',fontWeight:'900',alignSelf:'center',paddingBottom:'22px',color:isUrgent?'var(--red)':'var(--amber)'}},':'),
-          h('div',{className:'countdown-unit'},
-            h('span',{className:`countdown-num${isUrgent?' urgent':''}`}, String(secs).padStart(2,'0')),
-            h('div',{className:'countdown-label'},'วินาที')
-          )
-        ),
-        isUrgent && h('div',{style:{fontSize:'12px',color:'var(--red)',fontWeight:'700',marginTop:'4px',animation:'pulse 1s infinite'}},'⚠ เหลือเวลาน้อยมาก!')
-      ),
-
-      // Bank info
-      h('div', { style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'12px',padding:'18px',marginBottom:'20px'} },
-        h('div',{style:{fontWeight:'700',marginBottom:'14px',display:'flex',alignItems:'center',gap:'6px',fontSize:'14px'}},
-          h('span',{className:'ms ms-sm'},'account_balance'), 'ข้อมูลการโอนเงิน'
-        ),
-        h('div',{style:{background:'var(--bg3)',borderRadius:'var(--r)',padding:'12px 14px',fontSize:'13px',color:'var(--text3)',display:'flex',alignItems:'center',gap:'6px'}},
-          h('span',{className:'ms ms-xs'},'info'),
-          'กรุณาตั้งค่า BANK_NAME, BANK_ACCOUNT, BANK_ACCOUNT_NAME ใน GAS Script Properties และราคาจะถูกแจ้งผ่าน Support'
-        )
-      ),
-
-      // Slip upload
-      h('div',{style:{marginBottom:'16px'}},
-        h('label',{style:{display:'block',fontSize:'13px',fontWeight:'600',marginBottom:'8px',color:'var(--text2)'}},
-          h('span',{className:'ms ms-xs',style:{marginRight:'4px'}},'receipt_long'),'แนบสลิปการโอนเงิน *'
-        ),
-        h('label',{className:`slip-upload-zone${slipImg?' has-image':''}`,style:{display:'block',cursor:'pointer'}},
-          h('input',{type:'file',accept:'image/*',style:{display:'none'},onChange:handleSlipFile}),
-          slipImg
-            ? h('div',null,
-                h('img',{src:slipImg,alt:'slip',style:{maxWidth:'100%',maxHeight:'180px',borderRadius:'8px',display:'block',margin:'0 auto'}}),
-                h('div',{style:{marginTop:'8px',fontSize:'12px',color:'var(--green)',fontWeight:'600'}},
-                  h('span',{className:'ms ms-xs'},'check_circle'),' แนบสลิปแล้ว — คลิกหรือ Paste เพื่อเปลี่ยน'
-                )
-              )
-            : h('div',null,
-                h('div',{style:{fontSize:'36px',marginBottom:'8px'}},'📎'),
-                h('div',{style:{fontWeight:'600',marginBottom:'4px'}},'คลิกเพื่ออัปโหลดสลิป'),
-                h('div',{style:{fontSize:'12px',color:'var(--text3)'}},'หรือ Paste รูปภาพ (Ctrl+V) · JPG, PNG · ≤ 5MB')
-              )
-        )
-      ),
-
-      // Amount + Note
-      h('div',{className:'form-row'},
-        h('div',{className:'form-group'},
-          h('label',{className:'form-label'},h('span',{className:'ms ms-xs',style:{marginRight:'4px'}},'payments'),'จำนวนเงิน (บาท) *'),
-          h('input',{className:'form-input',type:'number',min:'1',value:amount,onChange:e=>{setAmount(e.target.value);setErrMsg('');},placeholder:'เช่น 1500'})
-        ),
-        h('div',{className:'form-group'},
-          h('label',{className:'form-label'},h('span',{className:'ms ms-xs',style:{marginRight:'4px'}},'notes'),'หมายเหตุ (ถ้ามี)'),
-          h('input',{className:'form-input',value:slipNote,onChange:e=>setSlipNote(e.target.value),placeholder:'เช่น โอนผ่าน SCB Mobile...'})
-        )
-      ),
-
-      errMsg && h('div',{style:{background:'var(--red-bg)',border:'1px solid var(--red)',borderRadius:'8px',padding:'10px 14px',marginBottom:'12px',fontSize:'12px',color:'var(--red)',display:'flex',alignItems:'center',gap:'6px'}},
-        h('span',{className:'ms ms-xs'},'error'), errMsg
-      ),
-
-      // Buttons
-      h('div',{style:{display:'flex',gap:'10px',marginBottom:'16px'}},
-        h('button',{className:'btn',style:{flex:1},onClick:onCancel,disabled:submitting},'ยกเลิก'),
-        h('button',{
-          className:'btn btn-primary',
-          style:{flex:2,background:'var(--amber)',borderColor:'var(--amber)',color:'#000',fontWeight:'700'},
-          onClick:submitSlip,
-          disabled:submitting||!slipImg||!amount.trim()
-        },
-          submitting
-            ? h(React.Fragment,null,h('span',{className:'ms ms-xs',style:{animation:'spin 0.8s linear infinite',display:'inline-block',marginRight:'6px'}},'refresh'),'กำลังส่ง...')
-            : h(React.Fragment,null,h('span',{className:'ms ms-xs'},'upload'),' ส่งสลิป & เริ่มใช้งาน')
-        )
-      ),
-      h('div',{style:{fontSize:'11px',color:'var(--text3)',textAlign:'center',lineHeight:'1.7'}},
-        '✅ เมื่อส่งสลิปสำเร็จ จะได้ใช้งาน Unlimit 3 วันทันที ระหว่างรอ Admin ตรวจสอบ'
-      )
-    )
-  );
-}
-
-// ── PlanStatusBanner — แสดงบน Dashboard / content area ──────────────────────
-function PlanStatusBanner({ teamPlan, onUpgrade }) {
-  if (!teamPlan) return null;
-  if (teamPlan.isTempAccess) {
-    const expDate = teamPlan.tokenExpiry ? new Date(teamPlan.tokenExpiry).toLocaleDateString('th-TH') : '';
-    return h('div',{className:'plan-banner plan-banner-temp'},
-      h('span',{className:'ms ms-xs'},'hourglass_top'),
-      h('span',null,'Unlimit Plan (ชั่วคราว 3 วัน) — รอ Admin ตรวจสอบ'),
-      expDate && h('span',{style:{marginLeft:'auto',fontWeight:'400',fontSize:'11px',whiteSpace:'nowrap'}},'หมด ',expDate)
-    );
-  }
-  if (teamPlan.isOfficialUnlimit || (teamPlan.plan==='unlimit'&&!teamPlan.isTempAccess)) {
-    return h('div',{className:'plan-banner plan-banner-unlimit'},
-      h('span',{className:'ms ms-xs'},'workspace_premium'),
-      h('span',null,'Unlimit Plan — ใช้งานไม่จำกัด ✅')
-    );
-  }
-  return h('div',{className:'plan-banner plan-banner-free'},
-    h('span',{className:'ms ms-xs'},'info'),
-    h('span',null,'Free Plan — Projects 1 / Tasks 2 / Test Cases 30 / Defects 10'),
-    onUpgrade && h('span',{
-      style:{marginLeft:'auto',fontSize:'11px',fontWeight:'700',color:'var(--amber)',cursor:'pointer',textDecoration:'underline',whiteSpace:'nowrap'},
-      onClick:onUpgrade
-    },'Upgrade →')
-  );
-}
-
-// ── PlanLimitModal — popup เมื่อถึง limit ────────────────────────────────────
-function PlanLimitModal({ sheet, limit, onClose, onUpgrade }) {
-  const names = {projects:'Project',tasks:'Task',testCases:'Test Case',defects:'Defect'};
-  return h('div',{className:'modal-overlay',onClick:e=>{if(e.target.className==='modal-overlay')onClose();}},
-    h('div',{className:'modal modal-sm',style:{maxWidth:'420px'}},
-      h('div',{className:'modal-header'},
-        h('span',{className:'modal-title',style:{color:'var(--amber)',display:'flex',alignItems:'center',gap:'8px'}},
-          h('span',{className:'ms ms-sm'},'workspace_premium'), 'ถึงขีดจำกัด Free Plan'
-        ),
-        h('button',{className:'modal-close',onClick:onClose},h('span',{className:'ms ms-sm'},'close'))
-      ),
-      h('div',{className:'modal-body',style:{textAlign:'center',padding:'28px 24px'}},
-        h('div',{style:{fontSize:'48px',marginBottom:'16px'}},'🚧'),
-        h('p',{style:{fontWeight:'700',fontSize:'15px',marginBottom:'8px'}},
-          `คุณมี ${names[sheet]||sheet} ครบ ${limit} รายการแล้ว`
-        ),
-        h('p',{style:{fontSize:'13px',color:'var(--text3)',lineHeight:'1.7'}},
-          'Free Plan จำกัดการใช้งาน Upgrade เป็น Unlimit Plan เพื่อใช้งานได้ไม่จำกัด'
-        )
-      ),
-      h('div',{className:'modal-footer'},
-        h('button',{className:'btn',onClick:onClose},'ปิด'),
-        h('button',{className:'btn btn-primary',style:{background:'var(--amber)',borderColor:'var(--amber)',color:'#000',fontWeight:'700'},onClick:onUpgrade},
-          h('span',{className:'ms ms-xs'},'workspace_premium'),' Upgrade Plan'
-        )
-      )
-    )
-  );
-}
-
-// ── SuperAdminPanel — หน้า Back-office สำหรับ Dev/Admin ──────────────────────
-function SuperAdminPanel({ currentUser, showToast }) {
-  const [data, setData]             = useState(null);
-  const [loading, setLoading]       = useState(true);
-  const [loadErr, setLoadErr]       = useState('');
-  const [selectedSlip, setSelected] = useState(null);
-  const [slipImg, setSlipImg]       = useState(null);
-  const [loadingImg, setLoadingImg] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
-  const [showRejectModal, setShowRejectModal] = useState(null);
-  const [processing, setProcessing] = useState(null);
-  const [filter, setFilter]         = useState('pending');
-
-  const load = React.useCallback(async () => {
-    setLoading(true); setLoadErr('');
-    try { setData(await api.getSuperAdminData()); }
-    catch(e) { setLoadErr(e.message||'โหลดข้อมูลล้มเหลว'); }
-    finally { setLoading(false); }
-  }, []);
-
-  useEffect(()=>{ load(); }, [load]);
-
-  const loadSlipImg = async (slip) => {
-    setSelected(slip); setSlipImg(null);
-    if (!slip.hasImage) return;
-    setLoadingImg(true);
-    try {
-      const res = await api.getSlipImage(slip.id);
-      setSlipImg(res.slipImageBase64 ? `data:image/jpeg;base64,${res.slipImageBase64}` : null);
-    } catch(e) { setSlipImg(null); }
-    finally { setLoadingImg(false); }
-  };
-
-  const approve = async (slipId) => {
-    setProcessing(slipId+'-approve');
-    try {
-      await api.approvePayment(slipId);
-      showToast('✅ อนุมัติสำเร็จ — ส่ง Official Token ให้ลูกค้าแล้ว', 'success');
-      setSelected(null);
-      await load();
-    } catch(e) { showToast('เกิดข้อผิดพลาด: '+e.message, 'error'); }
-    finally { setProcessing(null); }
-  };
-
-  const reject = async (slip, reason) => {
-    setProcessing(slip.id+'-reject');
-    try {
-      await api.rejectPayment(slip.id, reason||'สลิปไม่ถูกต้อง');
-      showToast('❌ ปฏิเสธแล้ว — ทีมถูกปรับเป็น Free Plan', 'error');
-      setShowRejectModal(null); setSelected(null);
-      await load();
-    } catch(e) { showToast('เกิดข้อผิดพลาด: '+e.message, 'error'); }
-    finally { setProcessing(null); }
-  };
-
-  if (loading) return h('div',{style:{padding:'60px',textAlign:'center'}},h(LoadingDots));
-  if (loadErr)  return h('div',{style:{padding:'60px',textAlign:'center',color:'var(--red)'}},
-    h('span',{className:'ms ms-lg'},'error'),' ',loadErr,
-    h('button',{className:'btn',style:{display:'block',margin:'16px auto'},onClick:load},'ลองใหม่')
-  );
-
-  const allSlips   = data?.slips || [];
-  const visSlips   = filter==='all' ? allSlips : allSlips.filter(s=>s.status===filter);
-  const pCount     = allSlips.filter(s=>s.status==='pending').length;
-  const aCount     = allSlips.filter(s=>s.status==='approved').length;
-  const rCount     = allSlips.filter(s=>s.status==='rejected').length;
-  const uCount     = (data?.subscriptions||[]).filter(s=>s.plan==='unlimit'&&s.status==='active').length;
-  const sBadge     = {pending:'badge-amber',approved:'badge-green',rejected:'badge-red'};
-  const sLabel     = {pending:'รอตรวจสอบ',approved:'อนุมัติแล้ว',rejected:'ปฏิเสธ'};
-
-  return h('div', { className:'content-area', style:{maxWidth:'1100px'} },
-    // Header
-    h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'24px',flexWrap:'wrap',gap:'12px'}},
-      h('div',null,
-        h('h2',{style:{fontWeight:'800',fontSize:'20px',display:'flex',alignItems:'center',gap:'8px'}},
-          h('span',{className:'ms',style:{color:'var(--accent)'}},'admin_panel_settings'),'Super Admin Panel'
-        ),
-        h('p',{style:{fontSize:'12px',color:'var(--text3)',marginTop:'4px'}},'จัดการ Payment Approval, Token สำหรับทุกทีม')
-      ),
-      h('button',{className:'btn',onClick:load,style:{display:'flex',alignItems:'center',gap:'6px'}},
-        h('span',{className:'ms ms-xs'},'refresh'),'รีเฟรช'
-      )
-    ),
-
-    // Stats
-    h('div',{className:'stats-row'},
-      [[pCount,'รอตรวจสอบ','var(--amber)','pending_actions'],
-       [aCount,'อนุมัติแล้ว','var(--green)','check_circle'],
-       [rCount,'ปฏิเสธ','var(--red)','cancel'],
-       [uCount,'ทีม Unlimit','var(--accent)','workspace_premium']
-      ].map(([num,label,color,icon])=>
-        h('div',{key:label,className:'stats-mini'},
-          h('span',{className:'ms ms-xl',style:{color,marginBottom:'4px',display:'block'}},icon),
-          h('div',{className:'stats-mini-num',style:{color}},num),
-          h('div',{className:'stats-mini-label'},label)
-        )
-      )
-    ),
-
-    // Filter tabs
-    h('div',{style:{display:'flex',gap:'8px',marginBottom:'20px',flexWrap:'wrap'}},
-      [['pending','⏳ รอตรวจสอบ'],['approved','✅ อนุมัติ'],['rejected','❌ ปฏิเสธ'],['all','ทั้งหมด']].map(([f,label])=>
-        h('button',{key:f,className:`btn${filter===f?' btn-primary':''}`,onClick:()=>setFilter(f)},label)
-      )
-    ),
-
-    visSlips.length===0 && h('div',{style:{textAlign:'center',padding:'60px',color:'var(--text3)'}},
-      h('span',{className:'ms ms-xxl',style:{opacity:0.25}},'receipt_long'),
-      h('div',{style:{marginTop:'12px',fontSize:'14px'}}, filter==='pending'?'ไม่มีรายการรอตรวจสอบ ✅':'ไม่มีข้อมูล')
-    ),
-
-    // Slip cards
-    visSlips.map(slip=>
-      h('div',{key:slip.id,className:`slip-card ${slip.status}-slip`},
-        h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'16px',flexWrap:'wrap'}},
-          h('div',{style:{flex:1,minWidth:'200px'}},
-            h('div',{style:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'8px',flexWrap:'wrap'}},
-              h('span',{style:{fontWeight:'700',fontSize:'15px'}},slip.teamName),
-              h('span',{className:`badge ${sBadge[slip.status]||'badge-gray'}`},sLabel[slip.status]||slip.status)
-            ),
-            h('div',{style:{fontSize:'12px',color:'var(--text3)',display:'flex',flexWrap:'wrap',gap:'14px',lineHeight:'1.8'}},
-              h('span',null,h('span',{className:'ms ms-xs',style:{marginRight:'2px'}},'person'),slip.adminName,' (',slip.adminEmail,')'),
-              slip.amount && h('span',{style:{color:'var(--green)',fontWeight:'700'}},h('span',{className:'ms ms-xs',style:{marginRight:'2px'}},'payments'),slip.amount,' บาท'),
-              h('span',null,h('span',{className:'ms ms-xs',style:{marginRight:'2px'}},'schedule'),new Date(slip.submittedAt).toLocaleString('th-TH'))
-            ),
-            slip.slipNote && h('div',{style:{fontSize:'12px',color:'var(--text2)',marginTop:'6px',display:'flex',alignItems:'center',gap:'4px'}},
-              h('span',{className:'ms ms-xs'},'notes'),slip.slipNote
-            ),
-            slip.status==='rejected'&&slip.rejectReason && h('div',{style:{fontSize:'12px',color:'var(--red)',marginTop:'6px',display:'flex',alignItems:'center',gap:'4px'}},
-              h('span',{className:'ms ms-xs'},'error'),'เหตุผล: ',slip.rejectReason
-            )
-          ),
-          h('div',{style:{display:'flex',flexDirection:'column',gap:'6px',flexShrink:0}},
-            h('button',{className:'btn btn-sm',onClick:()=>loadSlipImg(slip),style:{display:'flex',alignItems:'center',gap:'4px'}},
-              h('span',{className:'ms ms-xs'},'visibility'),'ดูสลิป'
-            ),
-            slip.status==='pending' && h(React.Fragment,null,
-              h('button',{
-                className:'btn btn-sm',
-                style:{background:'var(--green)',borderColor:'var(--green)',color:'#fff',display:'flex',alignItems:'center',gap:'4px'},
-                disabled:!!processing,
-                onClick:()=>approve(slip.id)
-              },
-                processing===slip.id+'-approve'
-                  ? h('span',{className:'ms ms-xs',style:{animation:'spin 0.8s linear infinite',display:'inline-block'}},'refresh')
-                  : h('span',{className:'ms ms-xs'},'check_circle'),
-                ' Approve'
-              ),
-              h('button',{
-                className:'btn btn-sm btn-danger',
-                style:{display:'flex',alignItems:'center',gap:'4px'},
-                disabled:!!processing,
-                onClick:()=>{ setShowRejectModal(slip); setRejectReason(''); }
-              },
-                h('span',{className:'ms ms-xs'},'cancel'),'Reject'
-              )
-            )
-          )
-        )
-      )
-    ),
-
-    // Slip image modal
-    selectedSlip && h('div',{className:'modal-overlay',onClick:e=>{ if(e.target.className==='modal-overlay'){setSelected(null);setSlipImg(null);} }},
-      h('div',{className:'modal',style:{maxWidth:'700px'}},
-        h('div',{className:'modal-header'},
-          h('span',{className:'modal-title'},
-            h('span',{className:'ms ms-sm',style:{marginRight:'6px'}},'receipt_long'),
-            'สลิปทีม "',selectedSlip.teamName,'"'
-          ),
-          h('button',{className:'modal-close',onClick:()=>{setSelected(null);setSlipImg(null);}},h('span',{className:'ms ms-sm'},'close'))
-        ),
-        h('div',{className:'modal-body'},
-          loadingImg && h('div',{style:{padding:'40px',textAlign:'center'}},h(LoadingDots)),
-          !loadingImg && slipImg && h('img',{src:slipImg,alt:'slip',className:'slip-image-preview'}),
-          !loadingImg && !slipImg && h('div',{style:{padding:'40px',textAlign:'center',color:'var(--text3)'}},'ไม่พบภาพสลิป'),
-          h('div',{style:{marginTop:'14px',background:'var(--bg3)',borderRadius:'var(--r)',padding:'12px 14px',fontSize:'13px',display:'grid',gridTemplateColumns:'auto 1fr',gap:'4px 12px'}},
-            h('span',{style:{color:'var(--text3)'}},'ทีม'),       h('strong',null,selectedSlip.teamName),
-            h('span',{style:{color:'var(--text3)'}},'Admin'),     h('span',null,selectedSlip.adminName,' — ',selectedSlip.adminEmail),
-            selectedSlip.amount && h(React.Fragment,null,
-              h('span',{style:{color:'var(--text3)'}},'จำนวน'),
-              h('strong',{style:{color:'var(--green)'}},selectedSlip.amount,' บาท')
-            ),
-            selectedSlip.slipNote && h(React.Fragment,null,
-              h('span',{style:{color:'var(--text3)'}},'หมายเหตุ'), h('span',null,selectedSlip.slipNote)
-            ),
-            h('span',{style:{color:'var(--text3)'}},'ส่งเมื่อ'),  h('span',{style:{fontFamily:'var(--mono)',fontSize:'12px'}},new Date(selectedSlip.submittedAt).toLocaleString('th-TH'))
-          )
-        ),
-        selectedSlip.status==='pending' && h('div',{className:'modal-footer'},
-          h('button',{className:'btn',onClick:()=>{setSelected(null);setSlipImg(null);}},'ปิด'),
-          h('button',{
-            className:'btn',style:{background:'var(--red)',borderColor:'var(--red)',color:'#fff',display:'flex',alignItems:'center',gap:'4px'},
-            onClick:()=>{ setShowRejectModal(selectedSlip); setRejectReason(''); setSelected(null); setSlipImg(null); }
-          },h('span',{className:'ms ms-xs'},'cancel'),'Reject'),
-          h('button',{
-            className:'btn btn-primary',style:{background:'var(--green)',borderColor:'var(--green)',display:'flex',alignItems:'center',gap:'4px'},
-            onClick:()=>approve(selectedSlip.id)
-          },h('span',{className:'ms ms-xs'},'check_circle'),'Approve & Send Token')
-        )
-      )
-    ),
-
-    // Reject modal
-    showRejectModal && h('div',{className:'modal-overlay',onClick:e=>{ if(e.target.className==='modal-overlay') setShowRejectModal(null); }},
-      h('div',{className:'modal modal-sm',style:{maxWidth:'460px'}},
-        h('div',{className:'modal-header'},
-          h('span',{className:'modal-title',style:{color:'var(--red)',display:'flex',alignItems:'center',gap:'8px'}},
-            h('span',{className:'ms ms-sm'},'cancel'),'ปฏิเสธ Payment'
-          ),
-          h('button',{className:'modal-close',onClick:()=>setShowRejectModal(null)},h('span',{className:'ms ms-sm'},'close'))
-        ),
-        h('div',{className:'modal-body'},
-          h('p',{style:{color:'var(--text2)',fontSize:'13px',marginBottom:'14px',lineHeight:'1.6'}},
-            'ระบุเหตุผลที่ปฏิเสธ จะถูกส่งอีเมลแจ้ง Admin ของทีม "',
-            h('strong',null,showRejectModal.teamName),'"'
-          ),
-          h('textarea',{
-            className:'form-textarea',
-            value:rejectReason,
-            onChange:e=>setRejectReason(e.target.value),
-            placeholder:'เช่น สลิปไม่ชัดเจน / ยอดเงินไม่ตรง / สลิปซ้ำ...',
-            style:{minHeight:'90px'}
-          })
-        ),
-        h('div',{className:'modal-footer'},
-          h('button',{className:'btn',onClick:()=>setShowRejectModal(null)},'ยกเลิก'),
-          h('button',{
-            className:'btn',
-            style:{background:'var(--red)',borderColor:'var(--red)',color:'#fff',display:'flex',alignItems:'center',gap:'4px'},
-            disabled:!!processing||!rejectReason.trim(),
-            onClick:()=>reject(showRejectModal, rejectReason)
-          },
-            processing===showRejectModal.id+'-reject'
-              ? h('span',{className:'ms ms-xs',style:{animation:'spin 0.8s linear infinite',display:'inline-block'}},'refresh')
-              : h('span',{className:'ms ms-xs'},'cancel'),
-            ' ยืนยันปฏิเสธ'
-          )
-        )
-      )
-    )
   );
 }
 

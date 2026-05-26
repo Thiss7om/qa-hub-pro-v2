@@ -15,11 +15,7 @@
            object-src 'none';
            base-uri 'self';">
 <title>QAHUBs — Test Management</title>
-<!-- QAHUBs v24 | 
-     [v24-PAYMENT] System Settings — Plan Unlimited: เพิ่มปุ่ม "ทำการชำระเงิน" สำหรับ paid_trial
-                   คลิกแล้วแสดง Payment Modal (โอนธนาคาร / บัตรเครดิต) — Dim ไว้ ยังไม่พร้อมใช้งาน
-     [v24-TOKEN-MASK] Token input: หลังกด "บันทึก Token" จะ mask เป็น ••••••• อัตโนมัติ
-                      Token ปัจจุบันแสดงเป็น •••••••••••••••••• เต็มๆ ไม่เผย prefix/suffix
+<!-- QAHUBs v23 | 
      [v23-ADMIN-BELL-INLINE] Admin NotificationBell: อนุมัติ/ปฏิเสธคำขอเข้าทีมได้ใน dropdown ทันที ไม่ navigate ไปหน้า pending
      [v23-USER-BELL] เพิ่ม UserNotificationBell สำหรับ User ทั่วไป — realtime updates จาก polling เข้ากระดิ่ง แทน toast
      [v23-EMAIL-TEMPLATE] Email templates ใหม่: พื้นขาว header น้ำเงิน + Copy button บน OTP box
@@ -1220,7 +1216,7 @@ const detectionOpts = ['Positive','Negative'];
 // ─── GOOGLE SHEETS CONFIG ─────────────────────────────────────────────────────
 // ใส่ URL ของ Google Apps Script Web App ที่ Deploy แล้ว
 // [FIX VULN-06] SS_ID ถูกลบออกจาก client-side code แล้ว — อยู่ใน Code.gs เท่านั้น
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyBracTC_gsP12iqO3B-csRYQ3jInRtj1K26RfSMUNGwpC7bACnvCOalki0lWPKkMzO/exec'; // ← ใส่ GAS URL ใหม่หลัง re-deploy
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyhQgnpYvrlkFzCW20uQRWyzZBjYSBRML_XWc0gLFlJtE8-0QbIjpbrDovkQLASnCsO/exec'; // ← ใส่ GAS URL ใหม่หลัง re-deploy
 
 // [v23-PLAN] Super Admin (Dev) emails — คั่นด้วย comma, ไม่มี space
 // User ที่มี email อยู่ในนี้จะ: (1) ไม่เห็น Plan modal (2) เห็น Dev Dashboard ใน sidebar
@@ -1794,8 +1790,8 @@ function App() {
     const newMap = Object.fromEntries(newData.map(o => [o.id, o]));
 
     const onErr = (action, id, e) => {
-      // [v23-PLAN] Intercept plan limit errors → show upgrade modal (ยกเว้น Super Admin)
-      if (e.message && e.message.startsWith('PLAN_LIMIT_') && !isSuperAdminUser) {
+      // [v23-PLAN] Intercept plan limit errors → show upgrade modal
+      if (e.message && e.message.startsWith('PLAN_LIMIT_')) {
         showPlanLimitModal(e.message);
         return;
       }
@@ -2289,8 +2285,6 @@ function App() {
   const [trialDaysLeft, setTrialDaysLeft] = useState(null);
   useEffect(() => {
     if (!currentTeam || !currentUser) { setTrialDaysLeft(null); return; }
-    // [v23-PLAN] Super Admin ไม่แสดง trial warning
-    if (isSuperAdminUser) { setTrialDaysLeft(null); return; }
     (async () => {
       try {
         const data = await api.getMyPlan(currentTeam.id);
@@ -4570,21 +4564,6 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
       await api.insert('members', newMember);
       (setTeamsState || setTeams)(p => [...p, t]);
       (setMembersState || setMembers)(p => [...p, newMember]);
-      // [v23-PLAN] Super Admin → ข้ามขั้นตอนเลือก Plan ไป Unlimited ทันที
-      if (isSuperAdminUser) {
-        try {
-          await api.selectPlan(t.id, 'paid', currentUser.email, currentUser.name, t.name);
-          showToast(`ทีม "${t.name}" สร้างสำเร็จ! (Super Admin — Unlimited)`);
-        } catch(eSA) {
-          // ถ้า selectPlan error ไม่บล็อก — team ยังใช้งานได้ปกติ
-          console.warn('[SuperAdmin] selectPlan warn:', eSA.message);
-        }
-        setCurrentTeam(t);
-        setPage('dashboard');
-        setShowCreate(false);
-        setTeamName('');
-        return;
-      }
       // บันทึก pending team ไว้ รอเลือก Plan
       setPendingTeam({ team: t, member: newMember });
       setPlanStep('plan');
@@ -9244,12 +9223,8 @@ function SystemSettingsTab({ currentUser, currentTeam, showToast }) {
   const [planInfo, setPlanInfo]       = useState(null);
   const [authToken, setAuthToken_]    = useState('');
   const [tokenSaving, setTokenSaving] = useState(false);
-  const [tokenSaved, setTokenSaved]   = useState(false);
   const [upgrading, setUpgrading]     = useState(false);
   const [planLoading, setPlanLoading] = useState(true);
-
-  // [v24-PAYMENT] Payment modal state
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -9324,7 +9299,6 @@ function SystemSettingsTab({ currentUser, currentTeam, showToast }) {
       await api.saveSystemToken(currentTeam.id, authToken.trim());
       showToast('บันทึก Token สำเร็จ — Unlimited Plan พร้อมใช้งาน');
       setPlanInfo(p => ({ ...p, token: authToken.trim(), status:'active', plan: p?.plan === 'paid_trial' ? 'paid' : p?.plan }));
-      setTokenSaved(true);
     } catch(e) { showToast('บันทึก Token ล้มเหลว: ' + e.message, 'error'); }
     setTokenSaving(false);
   };
@@ -9391,25 +9365,6 @@ function SystemSettingsTab({ currentUser, currentTeam, showToast }) {
 
             // Token Update (แสดงเฉพาะ paid / paid_trial)
             (planInfo?.plan === 'paid' || planInfo?.plan === 'paid_trial') && h('div',null,
-              // [v24-PAYMENT] ปุ่มชำระเงิน — แสดงเฉพาะ paid_trial ที่ยังไม่ได้ชำระ
-              planInfo?.plan === 'paid_trial' && planInfo?.status === 'trial' && h('div',{style:{marginBottom:'16px',padding:'14px 16px',background:'linear-gradient(135deg,rgba(245,158,11,0.15),rgba(249,115,22,0.10))',borderRadius:'var(--r2)',border:'1px solid var(--amber)'}},
-                h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'12px',flexWrap:'wrap'}},
-                  h('div',null,
-                    h('div',{style:{fontWeight:'700',fontSize:'14px',color:'var(--amber)',marginBottom:'4px',display:'flex',alignItems:'center',gap:'6px'}},
-                      h('span',{className:'ms ms-sm',style:{color:'var(--amber)'}},'payments'),
-                      'ชำระเงินเพื่อรับ Token Unlimited'
-                    ),
-                    h('div',{style:{fontSize:'12px',color:'var(--text2)'}},
-                      'กรุณาชำระเงินก่อน จากนั้นกรอก Token ที่ได้รับทาง Email ด้านล่าง'
-                    )
-                  ),
-                  h('button',{
-                    className:'btn',
-                    style:{background:'var(--amber)',color:'#fff',border:'none',display:'flex',alignItems:'center',gap:'6px',flexShrink:0,padding:'10px 20px',fontWeight:'600'},
-                    onClick: () => setShowPaymentModal(true)
-                  }, h('span',{className:'ms ms-xs'},'payment'), 'ทำการชำระเงิน')
-                )
-              ),
               h('div',{style:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'8px'}},
                 h('span',{className:'ms ms-sm',style:{color:'var(--green)'}},'key'),
                 h('span',{style:{fontWeight:'600',fontSize:'14px'}},'Update Auth Token'),
@@ -9423,12 +9378,11 @@ function SystemSettingsTab({ currentUser, currentTeam, showToast }) {
               ),
               h('div',{style:{display:'flex',gap:'8px',alignItems:'center'}},
                 h('input',{
-                  className:'form-input',
-                  type: tokenSaved ? 'password' : 'text',
+                  className:'form-input', type:'text',
                   placeholder:'Auth Token (จาก Email ที่ได้รับ)',
                   value: authToken,
-                  onChange: e => { setAuthToken_(e.target.value); setTokenSaved(false); },
-                  style:{fontFamily:'var(--mono)',fontSize:'13px',letterSpacing: tokenSaved ? '4px' : '1px',flex:1}
+                  onChange: e => setAuthToken_(e.target.value),
+                  style:{fontFamily:'var(--mono)',fontSize:'13px',letterSpacing:'1px',flex:1}
                 }),
                 h('button',{
                   className:'btn btn-primary', onClick: saveToken, disabled: tokenSaving || !authToken.trim(),
@@ -9441,7 +9395,7 @@ function SystemSettingsTab({ currentUser, currentTeam, showToast }) {
               planInfo?.token && h('div',{style:{marginTop:'8px',fontSize:'11px',color:'var(--text3)'}},
                 'Token ปัจจุบัน: ',
                 h('span',{style:{fontFamily:'var(--mono)',color:'var(--green)'}},
-                  '••••••••••••••••••'
+                  planInfo.token.slice(0,8) + '••••••••' + planInfo.token.slice(-4)
                 )
               )
             ),
@@ -9567,71 +9521,7 @@ function SystemSettingsTab({ currentUser, currentTeam, showToast }) {
               )))
             )
           )
-    ),
-
-    // [v24-PAYMENT] Payment Modal
-    showPaymentModal && h('div',{className:'modal-overlay',onClick:()=>setShowPaymentModal(false)},
-      h('div',{className:'modal modal-sm',style:{maxWidth:'460px'},onClick:e=>e.stopPropagation()},
-        h('div',{className:'modal-header'},
-          h('div',{style:{display:'flex',alignItems:'center',gap:'10px'}},
-            h('span',{className:'ms',style:{color:'var(--amber)',fontSize:'26px'}},'payments'),
-            h('h3',{className:'modal-title'},'เลือกวิธีการชำระเงิน')
-          ),
-          h('button',{className:'modal-close',onClick:()=>setShowPaymentModal(false)},
-            h('span',{className:'ms'},'close')
-          )
-        ),
-        h('div',{style:{padding:'20px 24px'}},
-          h('p',{style:{fontSize:'13px',color:'var(--text2)',marginBottom:'20px',lineHeight:'1.8'}},
-            'เลือกช่องทางการชำระเงินสำหรับ Unlimited Plan หลังชำระเงินสำเร็จ ท่านจะได้รับ Token ทาง Email'
-          ),
-          // Option 1 — โอนผ่านธนาคาร (dimmed)
-          h('div',{style:{
-            border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'16px',marginBottom:'12px',
-            opacity:0.45,cursor:'not-allowed',background:'var(--bg3)',position:'relative'
-          }},
-            h('div',{style:{display:'flex',alignItems:'center',gap:'12px'}},
-              h('span',{className:'ms',style:{fontSize:'28px',color:'var(--text3)'}},'account_balance'),
-              h('div',null,
-                h('div',{style:{fontWeight:'700',fontSize:'14px',color:'var(--text2)'}},'โอนผ่านธนาคาร'),
-                h('div',{style:{fontSize:'12px',color:'var(--text3)',marginTop:'3px'}},'Internet Banking / Mobile Banking'),
-                h('div',{style:{
-                  fontSize:'11px',color:'var(--text3)',marginTop:'6px',
-                  textDecoration:'underline',fontStyle:'italic'
-                }},'ยังไม่พร้อมใช้งาน')
-              )
-            )
-          ),
-          // Option 2 — บัตรเครดิต (dimmed)
-          h('div',{style:{
-            border:'1px solid var(--border)',borderRadius:'var(--r2)',padding:'16px',marginBottom:'20px',
-            opacity:0.45,cursor:'not-allowed',background:'var(--bg3)',position:'relative'
-          }},
-            h('div',{style:{display:'flex',alignItems:'center',gap:'12px'}},
-              h('span',{className:'ms',style:{fontSize:'28px',color:'var(--text3)'}},'credit_card'),
-              h('div',null,
-                h('div',{style:{fontWeight:'700',fontSize:'14px',color:'var(--text2)'}},'ชำระผ่านบัตรเครดิต'),
-                h('div',{style:{fontSize:'12px',color:'var(--text3)',marginTop:'3px'}},'Visa / Mastercard / JCB'),
-                h('div',{style:{
-                  fontSize:'11px',color:'var(--text3)',marginTop:'6px',
-                  textDecoration:'underline',fontStyle:'italic'
-                }},'ยังไม่พร้อมใช้งาน')
-              )
-            )
-          ),
-          h('div',{style:{background:'var(--bg4)',borderRadius:'var(--r)',padding:'10px 14px',fontSize:'12px',color:'var(--text2)',display:'flex',alignItems:'flex-start',gap:'6px'}},
-            h('span',{className:'ms ms-xs',style:{color:'var(--amber)',flexShrink:0,marginTop:'1px'}},'info'),
-            'ขณะนี้ระบบชำระเงินอยู่ระหว่างพัฒนา กรุณาติดต่อทีมงานโดยตรงเพื่อชำระเงินและรับ Token'
-          )
-        ),
-        h('div',{className:'modal-footer'},
-          h('button',{className:'btn btn-primary',onClick:()=>setShowPaymentModal(false)},
-            'รับทราบ'
-          )
-        )
-      )
     )
-
   );
 }
 // ─── PENDING APPROVAL SUB-COMPONENT ──────────────────────────────────────────

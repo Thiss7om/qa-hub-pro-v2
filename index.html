@@ -1228,7 +1228,7 @@ const detectionOpts = ['Positive','Negative'];
 // ─── GOOGLE SHEETS CONFIG ─────────────────────────────────────────────────────
 // ใส่ URL ของ Google Apps Script Web App ที่ Deploy แล้ว
 // [FIX VULN-06] SS_ID ถูกลบออกจาก client-side code แล้ว — อยู่ใน Code.gs เท่านั้น
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbxRjMzR4KofRk8hGBDxAB8ODyrbUkC6Ca2ejo3emgFGSyaMb6mZRuOF7AYTgGl6JiTk/exec'; // ← ใส่ GAS URL ใหม่หลัง re-deploy
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyuVALPtf8d4MoQPB0gChrJvpK28jJxuoRtPCau4wgFpWiLvI-TwKtcPYfAj9L4LKHS/exec'; // ← ใส่ GAS URL ใหม่หลัง re-deploy
 
 // [v23-PLAN] Super Admin (Dev) emails — คั่นด้วย comma, ไม่มี space
 // User ที่มี email อยู่ในนี้จะ: (1) ไม่เห็น Plan modal (2) เห็น Dev Dashboard ใน sidebar
@@ -1527,6 +1527,10 @@ const api = {
   rejectOrder(orderId, note)  { return this._write({ action:'rejectOrder',  orderId, note: note||'' }); },
   resendToken(teamId)         { return this._write({ action:'resendToken',  teamId }); },
   saveSystemToken(teamId, authToken, adminEmail) { return this._write({ action:'saveSystemToken', teamId, authToken, adminEmail: adminEmail||'' }); },
+  // [v26] ส่งสลีปการชำระเงิน — base64 encoded image
+  submitSlip(teamId, teamName, adminEmail, adminName, slipFileName, slipBase64, slipType) {
+    return this._write({ action:'submitSlip', teamId, teamName, adminEmail, adminName, slipFileName, slipBase64, slipType });
+  },
   // [v25] Dev Settings API
   getPublicDevSettings() { return this._write({ action:'getPublicDevSettings' }); },
   getDevSettings()       { return this.rawWrite({ action:'getDevSettings',       token:getAuthToken() }); },
@@ -1922,6 +1926,10 @@ function App() {
   // ── Auto-poll pending every 30s — [FIX VULN-02] only when authenticated ──
   const [newPendingIds, setNewPendingIds] = useState(new Set());
   const prevPendingRef = useRef(null);
+  // [v26] Super Admin — pending payment (slip) notifications
+  const [newSlipOrderIds, setNewSlipOrderIds] = useState(new Set());
+  const prevSlipOrdersRef = useRef(null);
+  const clearNewSlipOrders = () => setNewSlipOrderIds(new Set());
 
   // ── [NEW v13] เสียงแจ้งเตือนสำหรับ Admin เมื่อมี Invite Join Request ใหม่ ──
   // สร้าง AudioContext เพื่อเล่นเสียง beep โดยไม่ต้องใช้ไฟล์เสียงภายนอก
@@ -1977,6 +1985,50 @@ function App() {
   }, [USE_GAS, loading, playJoinRequestSound]);
 
   const clearNewPending = () => setNewPendingIds(new Set());
+
+  // ── [v26] Super Admin: poll Orders (slips) every 30s ──────────────────────
+  useEffect(() => {
+    if (!USE_GAS || loading) return;
+    // ตรวจว่า isSuperAdminUser ไม่สามารถใช้โดยตรงใน useEffect เพราะอยู่ก่อน isSuperAdminUser
+    // ใช้ sessionStorage flag แทน
+    const pollSlips = async () => {
+      const tok = getAuthToken();
+      if (!tok) return;
+      const superEmails = (window.__QAH_SUPER_ADMINS__ || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+      const cu = (() => { try { return JSON.parse(sessionStorage.getItem('qah_session_user') || 'null'); } catch { return null; } })();
+      if (!cu || !superEmails.includes((cu.email || '').toLowerCase())) return;
+      try {
+        const orders = await api.getDevOrders('pending_payment');
+        const fresh = Array.isArray(orders) ? orders : [];
+        const prev = prevSlipOrdersRef.current;
+        if (prev !== null) {
+          const prevIds = new Set(prev.map(o => o.id));
+          const added = fresh.filter(o => o.status === 'pending_payment' && !prevIds.has(o.id) && o.slipFileName);
+          if (added.length > 0) {
+            setNewSlipOrderIds(s => { const ns = new Set(s); added.forEach(o => ns.add(o.id)); return ns; });
+            // เล่นเสียงแจ้งเตือน (3 beep — แตกต่างจาก join request)
+            try {
+              const actx = new (window.AudioContext || window.webkitAudioContext)();
+              [[660,0],[880,0.2],[1100,0.4]].forEach(([freq,delay]) => {
+                const osc = actx.createOscillator(); const gain = actx.createGain();
+                osc.connect(gain); gain.connect(actx.destination);
+                osc.type = 'sine'; osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0, actx.currentTime + delay);
+                gain.gain.linearRampToValueAtTime(0.28, actx.currentTime + delay + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + delay + 0.22);
+                osc.start(actx.currentTime + delay);
+                osc.stop(actx.currentTime + delay + 0.25);
+              });
+              setTimeout(() => { try { actx.close(); } catch {} }, 1200);
+            } catch(e) {}
+          }
+        }
+        prevSlipOrdersRef.current = fresh;
+      } catch(e) {}
+    };
+    const iv = setInterval(pollSlips, 30000);
+    return () => clearInterval(iv);
+  }, [USE_GAS, loading]); // eslint-disable-line
 
   // ── User Notification Bell state (realtime update notifications) ──
   const [userNotifs, setUserNotifs] = useState([]);
@@ -2555,6 +2607,7 @@ function App() {
     syncing, USE_GAS, refreshFromSheets,
     inviteWaitingTeam, setInviteWaitingTeam,
     newPendingIds, clearNewPending,
+    newSlipOrderIds, clearNewSlipOrders,
     userNotifs, clearUserNotifs,
     approvePending: appApprove, rejectPending: appReject,
     plans, setPlans, setPlansState, teamPlans,
@@ -4454,6 +4507,42 @@ function PaymentPopup({ onClose, onUseFree, planInfo, devSettings }) {
       )
     );
 
+  // ── [v26] Submit Slip to GAS ─────────────────────────────────────────────
+  const submitSlip = async () => {
+    if (!slipFile) { showToast && showToast('กรุณาเลือกไฟล์สลีปก่อน', 'error'); return; }
+    setSubmitting(true);
+    try {
+      const res = await api._write({
+        action: 'submitSlip',
+        teamId: currentTeam?.id || '',
+        teamName: currentTeam?.name || '',
+        adminEmail: currentUser?.email || '',
+        adminName: currentUser?.name || '',
+        slipFileName: slipFile.name,
+        slipBase64: slipFile.base64,
+        slipType: slipFile.type,
+      });
+      showToast && showToast('ส่งสลีปเรียบร้อย — Admin จะตรวจสอบและส่ง Token ให้ทาง Email');
+      setStep('done');
+    } catch(e) {
+      showToast && showToast('ส่งสลีปไม่สำเร็จ: ' + e.message, 'error');
+    }
+    setSubmitting(false);
+  };
+
+  // ── Step: Done (slip sent) ────────────────────────────────────────────────
+  const StepDone = () =>
+    h('div', { style:{padding:'32px 24px',textAlign:'center'} },
+      h('span',{className:'ms',style:{fontSize:'56px',color:'var(--green)',display:'block',marginBottom:'12px'}},'task_alt'),
+      h('div',{style:{fontSize:'18px',fontWeight:'700',color:'var(--green)',marginBottom:'8px'}},'ส่งสลีปสำเร็จ!'),
+      h('p',{style:{fontSize:'13px',color:'var(--text2)',lineHeight:'1.8',marginBottom:'24px'}},
+        'Admin ได้รับหลักฐานการชำระเงินแล้ว จะตรวจสอบและส่ง Auth Token ให้ทาง Email ของคุณ หลังจากได้รับ Token ให้นำไปกรอกใน System Settings'
+      ),
+      h('button',{className:'btn btn-primary',style:{justifyContent:'center',padding:'10px 24px'},onClick:onUseFree},
+        h('span',{className:'ms ms-xs'},'check'),' รับทราบ'
+      )
+    );
+
   // ── Step: รายละเอียดโอนธนาคาร ────────────────────────────────────────────
   const StepBank = () =>
     h('div', { style:{padding:'20px 24px'} },
@@ -4525,69 +4614,72 @@ function PaymentPopup({ onClose, onUseFree, planInfo, devSettings }) {
         ),
         h('ol', { style:{margin:'0',paddingLeft:'16px',fontSize:'12px',color:'var(--text2)',lineHeight:'2'} },
           h('li', null, `โอนเงินจำนวน ${priceDisplay} ไปยังบัญชีข้างต้น`),
-          h('li', null, 'ส่งหลักฐานการโอนเงิน (สลีป) ให้ Admin'),
-          h('li', null, 'Admin จะส่ง Auth Token ให้ทาง Email'),
-          h('li', null, 'นำ Token ไปกรอกในช่อง Auth Token ด้านล่าง')
+          h('li', null, 'อัพโหลดสลีปหลักฐานการโอนเงินด้านล่างนี้'),
+          h('li', null, 'Admin จะตรวจสอบและส่ง Auth Token ให้ทาง Email'),
+          h('li', null, 'นำ Token ไปกรอกในช่อง Auth Token ใน System Settings')
         )
       ),
 
-      // Slip Upload Section
+      // Slip Upload Section — [v26] React-state based with submit button
       h('div', { style:{background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:'var(--r2)',padding:'16px',marginBottom:'16px'} },
         h('div', { style:{fontSize:'12px',fontWeight:'700',color:'var(--text3)',textTransform:'uppercase',letterSpacing:'1px',marginBottom:'10px',display:'flex',alignItems:'center',gap:'6px'} },
-          h('span',{className:'ms ms-xs',style:{color:'var(--accent)'}},'upload_file'), 'อัพโหลดหลักฐานการชำระเงิน (สลีป)'
+          h('span',{className:'ms ms-xs',style:{color:'var(--accent)'}},'upload_file'), 'อัพโหลดหลักฐานการชำระเงิน (สลีป) *'
         ),
-        h('label', {
-          style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'8px',padding:'20px',border:'2px dashed var(--border2)',borderRadius:'var(--r2)',cursor:'pointer',background:'var(--bg4)',transition:'all 0.18s',color:'var(--text2)'},
-          onMouseEnter: e => { e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.background='var(--accent-bg)'; },
-          onMouseLeave: e => { e.currentTarget.style.borderColor='var(--border2)'; e.currentTarget.style.background='var(--bg4)'; }
-        },
-          h('span',{className:'ms',style:{fontSize:'32px',color:'var(--text3)'}},'image'),
-          h('span',{style:{fontSize:'13px',fontWeight:'600'}},'คลิกเพื่อเลือกไฟล์รูปสลีป'),
-          h('span',{style:{fontSize:'11px',color:'var(--text3)'}},'รองรับ JPG, PNG, PDF ขนาดไม่เกิน 5MB'),
-          h('input', {
-            type:'file', accept:'image/*,.pdf',
-            style:{display:'none'},
-            onChange: e => {
-              const file = e.target.files && e.target.files[0];
-              if (!file) return;
-              if (file.size > 5 * 1024 * 1024) { alert('ไฟล์ใหญ่เกิน 5MB กรุณาเลือกไฟล์อื่น'); return; }
-              const reader = new FileReader();
-              reader.onload = ev => {
-                const img = e.target.parentElement.querySelector('img');
-                const span = e.target.parentElement.querySelector('.slip-name');
-                if (img) { img.src = ev.target.result; img.style.display='block'; }
-                else {
-                  const preview = document.createElement('img');
-                  preview.src = ev.target.result;
-                  preview.style.cssText = 'max-width:100%;max-height:120px;border-radius:6px;margin-top:8px;border:1px solid var(--border2)';
-                  e.target.parentElement.appendChild(preview);
+        // Preview + drop zone
+        slipPreview
+          ? h('div', { style:{position:'relative',marginBottom:'10px'} },
+              h('img', { src: slipPreview, alt: 'slip preview',
+                style:{maxWidth:'100%',maxHeight:'180px',borderRadius:'var(--r2)',border:'2px solid var(--green)',display:'block',margin:'0 auto'} }),
+              h('div', { style:{display:'flex',alignItems:'center',gap:'6px',marginTop:'6px',justifyContent:'center'} },
+                h('span',{className:'ms ms-xs',style:{color:'var(--green)'}},'check_circle'),
+                h('span',{style:{fontSize:'12px',color:'var(--green)',fontWeight:'600'}}, slipFile?.name || '')
+              ),
+              h('button', {
+                className:'btn btn-sm',
+                style:{display:'block',margin:'8px auto 0',fontSize:'11px'},
+                onClick: () => { setSlipFile(null); setSlipPreview(null); }
+              }, h('span',{className:'ms ms-xs'},'close'), ' เปลี่ยนรูป')
+            )
+          : h('label', {
+              style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'8px',padding:'24px',border:'2px dashed var(--border2)',borderRadius:'var(--r2)',cursor:'pointer',background:'var(--bg4)',transition:'all 0.18s',color:'var(--text2)'},
+              onMouseEnter: e => { e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.background='var(--accent-bg)'; },
+              onMouseLeave: e => { e.currentTarget.style.borderColor='var(--border2)'; e.currentTarget.style.background='var(--bg4)'; }
+            },
+              h('span',{className:'ms',style:{fontSize:'36px',color:'var(--text3)'}},'add_photo_alternate'),
+              h('span',{style:{fontSize:'13px',fontWeight:'600'}},'คลิกเพื่อเลือกไฟล์รูปสลีป'),
+              h('span',{style:{fontSize:'11px',color:'var(--text3)'}},'รองรับ JPG, PNG ขนาดไม่เกิน 5MB'),
+              h('input', {
+                type:'file', accept:'image/*',
+                style:{display:'none'},
+                onChange: e => {
+                  const file = e.target.files && e.target.files[0];
+                  if (!file) return;
+                  if (file.size > 5 * 1024 * 1024) { alert('ไฟล์ใหญ่เกิน 5MB'); return; }
+                  const reader = new FileReader();
+                  reader.onload = ev => {
+                    setSlipPreview(ev.target.result);
+                    // strip "data:image/...;base64," prefix → raw base64
+                    const b64 = ev.target.result.split(',')[1] || ev.target.result;
+                    setSlipFile({ name: file.name, base64: b64, type: file.type });
+                  };
+                  reader.readAsDataURL(file);
                 }
-                const nameEl = e.target.parentElement.querySelector('.slip-name');
-                if (nameEl) nameEl.textContent = file.name;
-                else {
-                  const ne = document.createElement('span');
-                  ne.className = 'slip-name';
-                  ne.style.cssText = 'font-size:11px;color:var(--green);margin-top:4px';
-                  ne.textContent = '✓ ' + file.name;
-                  e.target.parentElement.appendChild(ne);
-                }
-              };
-              reader.readAsDataURL(file);
-            }
-          })
-        ),
-        h('p', { style:{fontSize:'11px',color:'var(--text3)',marginTop:'8px',marginBottom:0,lineHeight:'1.6'} },
-          'หลังอัพโหลดสลีป กรุณาส่งรูปดังกล่าวให้ Admin ทาง Email หรือ Line เพื่อให้ Admin ตรวจสอบและส่ง Token กลับ'
-        )
+              })
+            )
       ),
 
+      // Submit button
       h('button', {
         className:'btn btn-primary',
-        style:{width:'100%',justifyContent:'center',padding:'10px'},
-        onClick: onUseFree
+        style:{width:'100%',justifyContent:'center',padding:'12px',fontSize:'14px',opacity:(!slipFile||submitting)?0.55:1,cursor:(!slipFile||submitting)?'not-allowed':'pointer'},
+        disabled: !slipFile || submitting,
+        onClick: submitSlip
       },
-        h('span',{className:'ms ms-xs'},'check'), 'รับทราบ — ปิดหน้าต่างนี้'
-      )
+        submitting
+          ? h(React.Fragment, null, h('span',{className:'ms ms-xs',style:{animation:'spin 1s linear infinite'}},'sync'), ' กำลังส่ง...')
+          : h(React.Fragment, null, h('span',{className:'ms ms-xs'},'send'), ' ส่งสลีปให้ Admin')
+      ),
+      !slipFile && h('p',{style:{fontSize:'11px',color:'var(--text3)',marginTop:'6px',marginBottom:0,textAlign:'center'}},'กรุณาเลือกไฟล์รูปสลีปก่อนส่ง')
     );
 
   return h('div', { className:'modal-overlay', onClick: onClose },
@@ -4599,7 +4691,7 @@ function PaymentPopup({ onClose, onUseFree, planInfo, devSettings }) {
         ),
         h('button', { className:'btn-icon', onClick:onClose }, h('span',{className:'ms'},'close'))
       ),
-      step === 'select' ? h(StepSelect) : h(StepBank)
+      step === 'select' ? h(StepSelect) : step === 'done' ? h(StepDone) : h(StepBank)
     )
   );
 }
@@ -5253,6 +5345,9 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
     )),
     // [v26] PaymentPopup หลัง createTeam เลือก Unlimited Plan
     showPostCreatePayment && h(PaymentPopup, {
+      currentUser,
+      currentTeam,
+      showToast,
       planInfo: postCreatePlanInfo,
       devSettings: postCreateDevSettings,
       onClose: () => setShowPostCreatePayment(false),
@@ -5262,7 +5357,7 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
 }
 
 // ─── ADMIN NOTIFICATION BELL (คำขอเข้าร่วมทีม — คลิกพาไปหน้า Pending) ──────────
-function NotificationBell({ pendingMembers, currentTeam, isAdmin, navigate, setPage, newPendingIds, clearNewPending }) {
+function NotificationBell({ pendingMembers, currentTeam, isAdmin, navigate, setPage, newPendingIds, clearNewPending, newSlipOrderIds, clearNewSlipOrders, isSuperAdminUser }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const prevCountRef = useRef(0);
@@ -5281,8 +5376,9 @@ function NotificationBell({ pendingMembers, currentTeam, isAdmin, navigate, setP
     return acc;
   }, {}));
 
-  const count = reqs.length;
-  const hasNew = newPendingIds && reqs.some(r => newPendingIds.has(r.id));
+  const slipCount = isSuperAdminUser ? (newSlipOrderIds ? newSlipOrderIds.size : 0) : 0;
+  const count = reqs.length + slipCount;
+  const hasNew = (newPendingIds && reqs.some(r => newPendingIds.has(r.id))) || slipCount > 0;
 
   // เล่นเสียงเมื่อมี request ใหม่เข้ามา
   useEffect(() => {
@@ -5377,6 +5473,34 @@ function NotificationBell({ pendingMembers, currentTeam, isAdmin, navigate, setP
                   h('button', { className:'btn btn-sm btn-primary', style:{width:'100%',justifyContent:'center'},
                     onClick:goToPending },
                     h(React.Fragment,null,h('span',{className:'ms ms-xs'},'manage_accounts'),' ดูทั้งหมดและอนุมัติ')
+                  )
+                )
+              ),
+              // [v26] Slip payment notifications for Super Admin
+              isSuperAdminUser && slipCount > 0 && h(React.Fragment, null,
+                h('div', {
+                  style:{padding:'10px 16px',borderTop:'1px solid var(--border)',background:'var(--amber-bg)',cursor:'pointer',transition:'background 0.15s'},
+                  onClick: () => {
+                    setOpen(false);
+                    clearNewSlipOrders && clearNewSlipOrders();
+                    setPage('dev-dashboard');
+                  },
+                  onMouseEnter: e => { e.currentTarget.style.background='rgba(245,158,11,0.2)'; },
+                  onMouseLeave: e => { e.currentTarget.style.background='var(--amber-bg)'; }
+                },
+                  h('div', { style:{display:'flex',alignItems:'center',gap:'10px'} },
+                    h('div', { style:{width:'32px',height:'32px',borderRadius:'8px',background:'var(--amber)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0} },
+                      h('span',{className:'ms ms-sm',style:{color:'#fff'}},'receipt_long')
+                    ),
+                    h('div', { style:{flex:1,minWidth:0} },
+                      h('div', { style:{fontSize:'13px',fontWeight:'700',color:'var(--amber)',display:'flex',alignItems:'center',gap:'6px'} },
+                        h('span',{className:'ms ms-xs',style:{color:'var(--amber)'}},'payments'),
+                        'มีสลีปชำระเงินใหม่',
+                        h('span',{style:{fontSize:'10px',background:'var(--amber)',color:'#fff',padding:'1px 5px',borderRadius:'3px',fontWeight:'700'}}, slipCount)
+                      ),
+                      h('div', { style:{fontSize:'11px',color:'var(--text2)',marginTop:'2px'} }, 'คลิกเพื่อไปที่ Dev Dashboard ตรวจสอบ')
+                    ),
+                    h('span',{className:'ms ms-xs',style:{color:'var(--amber)'}},'chevron_right')
                   )
                 )
               )
@@ -5505,7 +5629,7 @@ function UserNotificationBell({ userNotifs, clearUserNotifs }) {
 
 
 // ─── TOPBAR ───────────────────────────────────────────────────────────────────
-function Topbar({ currentUser, setCurrentUser, users, setUsers, currentTeam, setCurrentTeam, setPage, navigate, myTeams, theme, toggleTheme, syncing, USE_GAS, refreshFromSheets, isAdmin, showToast, pendingMembers, newPendingIds, clearNewPending, sidebarOpen, toggleSidebar, approvePending, rejectPending, userNotifs, clearUserNotifs }) {
+function Topbar({ currentUser, setCurrentUser, users, setUsers, currentTeam, setCurrentTeam, setPage, navigate, myTeams, theme, toggleTheme, syncing, USE_GAS, refreshFromSheets, isAdmin, showToast, pendingMembers, newPendingIds, clearNewPending, newSlipOrderIds, clearNewSlipOrders, isSuperAdminUser, sidebarOpen, toggleSidebar, approvePending, rejectPending, userNotifs, clearUserNotifs }) {
   const [showMenu, setShowMenu] = useState(false);
   const [showSheetPass, setShowSheetPass] = useState(false);
   const [sheetPass, setSheetPass] = useState('');
@@ -5648,7 +5772,7 @@ function Topbar({ currentUser, setCurrentUser, users, setUsers, currentTeam, set
         h('span',{className:'ms ms-sm'},theme==='dark'?'light_mode':'dark_mode'),
         h('span',{style:{fontSize:'11px',fontWeight:'600',letterSpacing:'0.3px'}}, theme==='dark'?'':'')
       ),
-      isAdmin && h(NotificationBell, { pendingMembers, currentTeam, isAdmin, navigate, setPage, newPendingIds, clearNewPending }),
+      isAdmin && h(NotificationBell, { pendingMembers, currentTeam, isAdmin, navigate, setPage, newPendingIds, clearNewPending, newSlipOrderIds, clearNewSlipOrders, isSuperAdminUser }),
       currentTeam && h(UserNotificationBell, { userNotifs, clearUserNotifs }),
       h('div', { className: 'user-pill', style:{position:'relative'} },
         h('div', {
@@ -9847,9 +9971,9 @@ function SystemSettingsTab({ currentUser, currentTeam, showToast, setTeamPlanDat
         .then(data => {
           const d = data || {};
           setPlanInfo(d);
-          // [v25] Free Plan → แสดง Payment Popup ทันทีทุกครั้งที่เปิด System Settings
+          // [v25] Free Plan + paid_trial → แสดง Payment Popup เพื่อให้ชำระเงิน
           // [v25] Unlimited (paid) → ไม่แสดงอัตโนมัติ รอให้กดปุ่ม Upgrade เอง
-          if (d.plan === 'free' || !d.plan) {
+          if (d.plan === 'free' || !d.plan || d.plan === 'paid_trial') {
             setShowPaymentPopup(true);
           }
         })
@@ -9987,6 +10111,9 @@ function SystemSettingsTab({ currentUser, currentTeam, showToast, setTeamPlanDat
     showPaymentPopup && h(PaymentPopup, {
       planInfo,
       devSettings,
+      currentUser,
+      currentTeam,
+      showToast,
       onClose: () => setShowPaymentPopup(false),
       onUseFree: () => setShowPaymentPopup(false)
     }),

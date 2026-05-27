@@ -1528,7 +1528,7 @@ const api = {
   resendToken(teamId)         { return this._write({ action:'resendToken',  teamId }); },
   saveSystemToken(teamId, authToken, adminEmail) { return this._write({ action:'saveSystemToken', teamId, authToken, adminEmail: adminEmail||'' }); },
   // [v25] Dev Settings API
-  getPublicDevSettings() { return this.rawWrite({ action:'getPublicDevSettings', token:getAuthToken() }); },
+  getPublicDevSettings() { return this._write({ action:'getPublicDevSettings' }); },
   getDevSettings()       { return this.rawWrite({ action:'getDevSettings',       token:getAuthToken() }); },
   saveDevSettings(settings) { return this.rawWrite({ action:'saveDevSettings',   token:getAuthToken(), ...settings }); },
 
@@ -2692,6 +2692,13 @@ function App() {
           showToast('Upgrade เป็น Unlimited Trial แล้ว — ชำระเงินภายใน 30 นาที และรอ Token ทาง Email', 'warning');
         } catch(e) { showToast('Upgrade ล้มเหลว: ' + e.message, 'error'); }
       }
+    }),
+    // [v26] PaymentPopup หลัง createTeam เลือก Unlimited Plan
+    showPostCreatePayment && h(PaymentPopup, {
+      planInfo: postCreatePlanInfo,
+      devSettings: postCreateDevSettings,
+      onClose: () => setShowPostCreatePayment(false),
+      onUseFree: () => setShowPostCreatePayment(false)
     }),
     defectModalCtx && h(DefectModal, {
       key: defectModalCtx._key,
@@ -4531,6 +4538,56 @@ function PaymentPopup({ onClose, onUseFree, planInfo, devSettings }) {
         )
       ),
 
+      // Slip Upload Section
+      h('div', { style:{background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:'var(--r2)',padding:'16px',marginBottom:'16px'} },
+        h('div', { style:{fontSize:'12px',fontWeight:'700',color:'var(--text3)',textTransform:'uppercase',letterSpacing:'1px',marginBottom:'10px',display:'flex',alignItems:'center',gap:'6px'} },
+          h('span',{className:'ms ms-xs',style:{color:'var(--accent)'}},'upload_file'), 'อัพโหลดหลักฐานการชำระเงิน (สลีป)'
+        ),
+        h('label', {
+          style:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'8px',padding:'20px',border:'2px dashed var(--border2)',borderRadius:'var(--r2)',cursor:'pointer',background:'var(--bg4)',transition:'all 0.18s',color:'var(--text2)'},
+          onMouseEnter: e => { e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.background='var(--accent-bg)'; },
+          onMouseLeave: e => { e.currentTarget.style.borderColor='var(--border2)'; e.currentTarget.style.background='var(--bg4)'; }
+        },
+          h('span',{className:'ms',style:{fontSize:'32px',color:'var(--text3)'}},'image'),
+          h('span',{style:{fontSize:'13px',fontWeight:'600'}},'คลิกเพื่อเลือกไฟล์รูปสลีป'),
+          h('span',{style:{fontSize:'11px',color:'var(--text3)'}},'รองรับ JPG, PNG, PDF ขนาดไม่เกิน 5MB'),
+          h('input', {
+            type:'file', accept:'image/*,.pdf',
+            style:{display:'none'},
+            onChange: e => {
+              const file = e.target.files && e.target.files[0];
+              if (!file) return;
+              if (file.size > 5 * 1024 * 1024) { alert('ไฟล์ใหญ่เกิน 5MB กรุณาเลือกไฟล์อื่น'); return; }
+              const reader = new FileReader();
+              reader.onload = ev => {
+                const img = e.target.parentElement.querySelector('img');
+                const span = e.target.parentElement.querySelector('.slip-name');
+                if (img) { img.src = ev.target.result; img.style.display='block'; }
+                else {
+                  const preview = document.createElement('img');
+                  preview.src = ev.target.result;
+                  preview.style.cssText = 'max-width:100%;max-height:120px;border-radius:6px;margin-top:8px;border:1px solid var(--border2)';
+                  e.target.parentElement.appendChild(preview);
+                }
+                const nameEl = e.target.parentElement.querySelector('.slip-name');
+                if (nameEl) nameEl.textContent = file.name;
+                else {
+                  const ne = document.createElement('span');
+                  ne.className = 'slip-name';
+                  ne.style.cssText = 'font-size:11px;color:var(--green);margin-top:4px';
+                  ne.textContent = '✓ ' + file.name;
+                  e.target.parentElement.appendChild(ne);
+                }
+              };
+              reader.readAsDataURL(file);
+            }
+          })
+        ),
+        h('p', { style:{fontSize:'11px',color:'var(--text3)',marginTop:'8px',marginBottom:0,lineHeight:'1.6'} },
+          'หลังอัพโหลดสลีป กรุณาส่งรูปดังกล่าวให้ Admin ทาง Email หรือ Line เพื่อให้ Admin ตรวจสอบและส่ง Token กลับ'
+        )
+      ),
+
       h('button', {
         className:'btn btn-primary',
         style:{width:'100%',justifyContent:'center',padding:'10px'},
@@ -4934,6 +4991,10 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
   // [v23-PLAN] Upgrade Modal
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeTeam, setUpgradeTeam] = useState(null);
+  // [v26] PaymentPopup หลัง createTeam เลือก Unlimited Plan
+  const [showPostCreatePayment, setShowPostCreatePayment] = useState(false);
+  const [postCreateDevSettings, setPostCreateDevSettings] = useState({});
+  const [postCreatePlanInfo, setPostCreatePlanInfo] = useState({});
 
   useEffect(() => {
     if (autoJoinCode) { setInviteCode(autoJoinCode); setShowJoin(true); }
@@ -4974,9 +5035,23 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
       if (plan === 'free') {
         showToast(`ทีม "${team.name}" สร้างสำเร็จ! Free Plan พร้อมใช้งาน`);
       } else {
-        // paid_trial — แสดง Popup แจ้ง trial 3 วัน
+        // paid_trial — แสดง PaymentPopup แจ้งช่องทางชำระเงิน
         const trialEnd = res?.trialEndAt ? new Date(res.trialEndAt).toLocaleDateString('th-TH') : '3 วัน';
         showToast(`ทีม "${team.name}" พร้อมใช้งาน — Trial Unlimited ถึง ${trialEnd} กรุณาชำระเงินเพื่อใช้ต่อ`, 'warning');
+        // [v26] โหลด devSettings แล้วแสดง PaymentPopup
+        try {
+          const ds = await api.getPublicDevSettings();
+          setPostCreateDevSettings(ds || {});
+        } catch(e2) { setPostCreateDevSettings({}); }
+        setPostCreatePlanInfo({ plan: 'paid_trial', status: 'trial', trialEndAt: res?.trialEndAt || '' });
+        setCurrentTeam(team);
+        setPage('dashboard');
+        setPendingTeam(null);
+        setPlanStep('name');
+        setTeamName('');
+        setShowCreate(false);
+        setShowPostCreatePayment(true);
+        return;
       }
       setCurrentTeam(team);
       setPage('dashboard');

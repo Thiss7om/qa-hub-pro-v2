@@ -26,7 +26,7 @@
      [v24-FREE-TC-IMPORT] Free Plan: Dim ปุ่ม Import Test Case เมื่อ TC เต็ม
      [v24-TOKEN-REUSE] Token ใช้ซ้ำไม่ได้ — แสดง Popup แจ้งเตือน
      [v24-TOKEN-EMAIL] Token ต้องตรงกับ Email ที่ซื้อ — ถ้าไม่ตรงแสดง Popup
-     [v24-TOKEN-FORMAT] แยก Token FREE (QAH-FREE-...) กับ UNLIMITED (QAH-UNL-...) ให้ชัดเจน
+     [v26-TOKEN-FORMAT] ลบ prefix QAH-UNL- / QAH-FREE- ออก — ใช้ Token ตรงๆ จาก TeamTokens sheet
      [v23-PREVIOUS] (ดูประวัติ v23 ด้านล่าง) 
      [v23-ADMIN-BELL-INLINE] Admin NotificationBell: อนุมัติ/ปฏิเสธคำขอเข้าทีมได้ใน dropdown ทันที ไม่ navigate ไปหน้า pending
      [v23-USER-BELL] เพิ่ม UserNotificationBell สำหรับ User ทั่วไป — realtime updates จาก polling เข้ากระดิ่ง แทน toast
@@ -1228,7 +1228,7 @@ const detectionOpts = ['Positive','Negative'];
 // ─── GOOGLE SHEETS CONFIG ─────────────────────────────────────────────────────
 // ใส่ URL ของ Google Apps Script Web App ที่ Deploy แล้ว
 // [FIX VULN-06] SS_ID ถูกลบออกจาก client-side code แล้ว — อยู่ใน Code.gs เท่านั้น
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwCpTQbS82OBGbUerScPBzMAEsIuYcIys_8p477aseQuFFwPaa-Z8vf42CXAwzOoHjm/exec'; // ← ใส่ GAS URL ใหม่หลัง re-deploy
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwkn-jmI0Cvogs8u0VdKe2cpNgXFrykzZBdL72xUrOpVc8Cupu1mo192ixAKERtcFys/exec'; // ← ใส่ GAS URL ใหม่หลัง re-deploy
 
 // [v23-PLAN] Super Admin (Dev) emails — คั่นด้วย comma, ไม่มี space
 // User ที่มี email อยู่ในนี้จะ: (1) ไม่เห็น Plan modal (2) เห็น Dev Dashboard ใน sidebar
@@ -2692,13 +2692,6 @@ function App() {
           showToast('Upgrade เป็น Unlimited Trial แล้ว — ชำระเงินภายใน 30 นาที และรอ Token ทาง Email', 'warning');
         } catch(e) { showToast('Upgrade ล้มเหลว: ' + e.message, 'error'); }
       }
-    }),
-    // [v26] PaymentPopup หลัง createTeam เลือก Unlimited Plan
-    showPostCreatePayment && h(PaymentPopup, {
-      planInfo: postCreatePlanInfo,
-      devSettings: postCreateDevSettings,
-      onClose: () => setShowPostCreatePayment(false),
-      onUseFree: () => setShowPostCreatePayment(false)
     }),
     defectModalCtx && h(DefectModal, {
       key: defectModalCtx._key,
@@ -4533,7 +4526,7 @@ function PaymentPopup({ onClose, onUseFree, planInfo, devSettings }) {
         h('ol', { style:{margin:'0',paddingLeft:'16px',fontSize:'12px',color:'var(--text2)',lineHeight:'2'} },
           h('li', null, `โอนเงินจำนวน ${priceDisplay} ไปยังบัญชีข้างต้น`),
           h('li', null, 'ส่งหลักฐานการโอนเงิน (สลีป) ให้ Admin'),
-          h('li', null, 'Admin จะส่ง Auth Token (QAH-UNL-...) ให้ทาง Email'),
+          h('li', null, 'Admin จะส่ง Auth Token ให้ทาง Email'),
           h('li', null, 'นำ Token ไปกรอกในช่อง Auth Token ด้านล่าง')
         )
       ),
@@ -5139,7 +5132,8 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
 
   const colors = ['#4f8ef7','#34d399','#f472b6','#a78bfa','#fbbf24'];
 
-  return h('div', { style:{minHeight:'100vh', background:'var(--bg)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'24px'} },
+  return h(React.Fragment, null,
+    h('div', { style:{minHeight:'100vh', background:'var(--bg)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'24px'} },
     h('div', { style:{width:'100%', maxWidth:'560px'} },
       h('div', { style:{textAlign:'center', marginBottom:'32px'} },
         h('div', { style:{fontSize:'22px', fontWeight:'700', color:'var(--accent)'} }, 'QAHub', h('span', { style:{color:'var(--text)'} }, 's')),
@@ -5239,7 +5233,14 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
           h('button', { className:'btn', onClick:()=>{ setShowJoin(false); setJoinErr(''); setJoining(false); }, disabled:joining }, 'ยกเลิก')
         )
       )
-    )
+    )),
+    // [v26] PaymentPopup หลัง createTeam เลือก Unlimited Plan
+    showPostCreatePayment && h(PaymentPopup, {
+      planInfo: postCreatePlanInfo,
+      devSettings: postCreateDevSettings,
+      onClose: () => setShowPostCreatePayment(false),
+      onUseFree: () => setShowPostCreatePayment(false)
+    })
   );
 }
 
@@ -9899,17 +9900,6 @@ function SystemSettingsTab({ currentUser, currentTeam, showToast, setTeamPlanDat
     api.getPublicDevSettings().then(data => { if (data && !data.error) setDevSettings(data); }).catch(()=>{});
   }, []);
 
-  // [v24] Token format validation
-  // FREE Token format:  QAH-FREE-XXXXXXXXXXXXXXXX  (prefix QAH-FREE-)
-  // UNLIMITED Token:    QAH-UNL-XXXXXXXXXXXXXXXX   (prefix QAH-UNL-)
-  const detectTokenType = (tok) => {
-    if (!tok) return null;
-    const t = tok.trim().toUpperCase();
-    if (t.startsWith('QAH-FREE-')) return 'free';
-    if (t.startsWith('QAH-UNL-')) return 'unlimited';
-    return 'unknown';
-  };
-
   // [v23-PLAN] บันทึก Token ใน System Settings with validation
   const saveToken = async () => {
     if (!authToken.trim()) { showToast('กรุณากรอก Auth Token', 'error'); return; }
@@ -10050,65 +10040,26 @@ function SystemSettingsTab({ currentUser, currentTeam, showToast, setTeamPlanDat
               )
             ),
 
-            // [v24] Token Update with type distinction (Free vs Unlimited)
+            // [v26] Token Update — ไม่ใช้ prefix แล้ว ใช้ Token ตรงๆ ที่ได้รับทาง Email
             (planInfo?.plan === 'paid' || planInfo?.plan === 'paid_trial') && h('div',null,
               h('div',{style:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'10px'}},
                 h('span',{className:'ms ms-sm',style:{color:'var(--cyan)'}},'vpn_key'),
                 h('span',{style:{fontWeight:'700',fontSize:'14px'}},'กรอก Auth Token'),
                 planInfo?.status === 'trial' &&
-                  h('span',{style:{fontSize:'11px',background:'var(--amber)',color:'#fff',padding:'2px 8px',borderRadius:'10px',fontWeight:'700'}},'TRIAL — ต้องใช้ Token UNLIMITED')
-              ),
-              // Token type legend
-              h('div',{style:{display:'flex',gap:'10px',marginBottom:'12px'}},
-                h('div',{style:{flex:1,padding:'10px',borderRadius:'var(--r)',border:'1px solid var(--border)',background:'var(--bg3)'}},
-                  h('div',{style:{fontSize:'10px',fontWeight:'700',color:'var(--text3)',marginBottom:'4px',display:'flex',alignItems:'center',gap:'4px'}},
-                    h('span',{className:'ms ms-xs',style:{color:'var(--text3)'}},'token'), 'FREE TOKEN FORMAT'
-                  ),
-                  h('div',{style:{fontFamily:'var(--mono)',fontSize:'11px',color:'var(--text2)',background:'var(--bg4)',padding:'4px 8px',borderRadius:'4px'}},
-                    'QAH-FREE-XXXXXXXXXXXXXXXX'
-                  ),
-                  h('div',{style:{fontSize:'10px',color:'var(--text3)',marginTop:'4px'}},'สำหรับ: ยังไม่รองรับ (สงวนไว้)')
-                ),
-                h('div',{style:{flex:1,padding:'10px',borderRadius:'var(--r)',border:'2px solid var(--green)',background:'var(--green-bg)'}},
-                  h('div',{style:{fontSize:'10px',fontWeight:'700',color:'var(--green)',marginBottom:'4px',display:'flex',alignItems:'center',gap:'4px'}},
-                    h('span',{className:'ms ms-xs',style:{color:'var(--green)'}},'workspace_premium'), 'UNLIMITED TOKEN FORMAT'
-                  ),
-                  h('div',{style:{fontFamily:'var(--mono)',fontSize:'11px',color:'var(--green)',background:'rgba(16,185,129,0.1)',padding:'4px 8px',borderRadius:'4px',fontWeight:'600'}},
-                    'QAH-UNL-XXXXXXXXXXXXXXXX'
-                  ),
-                  h('div',{style:{fontSize:'10px',color:'var(--green)',marginTop:'4px'}},
-                    h('span',{className:'ms ms-xs'},'check_circle'), ' ต้องใช้ Token นี้เพื่อเปิด Unlimited'
-                  )
-                )
-              ),
-              // Token detected type indicator
-              authToken && h('div',{style:{
-                display:'flex',alignItems:'center',gap:'6px',
-                padding:'6px 10px',marginBottom:'8px',borderRadius:'var(--r)',
-                background: detectTokenType(authToken)==='unlimited'?'var(--green-bg)':detectTokenType(authToken)==='free'?'var(--amber-bg)':'var(--red-bg)',
-                border:'1px solid '+(detectTokenType(authToken)==='unlimited'?'var(--green)':detectTokenType(authToken)==='free'?'var(--amber)':'var(--red)'),
-                fontSize:'12px'
-              }},
-                h('span',{className:'ms ms-xs',style:{color:detectTokenType(authToken)==='unlimited'?'var(--green)':detectTokenType(authToken)==='free'?'var(--amber)':'var(--red)'}},
-                  detectTokenType(authToken)==='unlimited'?'check_circle':detectTokenType(authToken)==='free'?'info':'warning'
-                ),
-                detectTokenType(authToken)==='unlimited' ? 'Token ประเภท UNLIMITED — ถูกต้อง' :
-                detectTokenType(authToken)==='free' ? 'Token ประเภท FREE — ยังไม่รองรับ' :
-                'รูปแบบ Token ไม่ถูกต้อง (ต้องขึ้นต้นด้วย QAH-UNL- หรือ QAH-FREE-)'
+                  h('span',{style:{fontSize:'11px',background:'var(--amber)',color:'#fff',padding:'2px 8px',borderRadius:'10px',fontWeight:'700'}},'TRIAL — ต้องใช้ Token Unlimited')
               ),
               h('p',{style:{fontSize:'12px',color:'var(--text2)',marginBottom:'8px',lineHeight:'1.7'}},
                 planInfo?.status === 'trial'
-                  ? 'กรอก Token Unlimited (QAH-UNL-...) ที่ได้รับทาง Email หลัง Dev อนุมัติการชำระเงิน เพื่อเปิดใช้งานแบบถาวร'
-                  : 'กรอก Token Unlimited (QAH-UNL-...) ที่ได้รับจาก Dev เพื่ออัพเดทสิทธิ์'
+                  ? 'กรอก Token ที่ได้รับทาง Email หลัง Dev อนุมัติการชำระเงิน เพื่อเปิดใช้งานแบบถาวร'
+                  : 'กรอก Token ที่ได้รับจาก Dev เพื่ออัพเดทสิทธิ์'
               ),
               h('div',{style:{display:'flex',gap:'8px',alignItems:'center'}},
                 h('input',{
                   className:'form-input', type:'text',
-                  placeholder:'QAH-UNL-xxxxxxxxxxxxxxxx',
+                  placeholder:'วาง Token ที่ได้รับทาง Email ที่นี่',
                   value: authToken,
                   onChange: e => setAuthToken_(e.target.value),
-                  style:{fontFamily:'var(--mono)',fontSize:'13px',letterSpacing:'1px',flex:1,
-                    borderColor: authToken?(detectTokenType(authToken)==='unlimited'?'var(--green)':detectTokenType(authToken)==='free'?'var(--amber)':'var(--red)'):'var(--border2)'}
+                  style:{fontFamily:'var(--mono)',fontSize:'13px',letterSpacing:'0.5px',flex:1}
                 }),
                 h('button',{
                   className:'btn btn-primary', onClick: saveToken, disabled: tokenSaving || !authToken.trim(),

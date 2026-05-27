@@ -4478,7 +4478,8 @@ function PaymentPopup({ onClose, onUseFree, planInfo, devSettings, currentUser, 
         // 2. บัตรเครดิต — DIM ยังไม่พร้อม
         h('div', { style:{
           border:'1px solid var(--border)', borderRadius:'var(--r2)',
-          padding:'16px', opacity:0.4, cursor:'not-allowed',
+          padding:'16px', cursor:'pointer', background:'var(--accent-bg)',
+          // padding:'16px', opacity:0.4, cursor:'not-allowed',
           background:'var(--bg3)', pointerEvents:'none'
         }},
           h('div', { style:{display:'flex',alignItems:'center',gap:'12px'} },

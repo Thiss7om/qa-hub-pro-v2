@@ -1228,7 +1228,7 @@ const detectionOpts = ['Positive','Negative'];
 // ─── GOOGLE SHEETS CONFIG ─────────────────────────────────────────────────────
 // ใส่ URL ของ Google Apps Script Web App ที่ Deploy แล้ว
 // [FIX VULN-06] SS_ID ถูกลบออกจาก client-side code แล้ว — อยู่ใน Code.gs เท่านั้น
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwkn-jmI0Cvogs8u0VdKe2cpNgXFrykzZBdL72xUrOpVc8Cupu1mo192ixAKERtcFys/exec'; // ← ใส่ GAS URL ใหม่หลัง re-deploy
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxRjMzR4KofRk8hGBDxAB8ODyrbUkC6Ca2ejo3emgFGSyaMb6mZRuOF7AYTgGl6JiTk/exec'; // ← ใส่ GAS URL ใหม่หลัง re-deploy
 
 // [v23-PLAN] Super Admin (Dev) emails — คั่นด้วย comma, ไม่มี space
 // User ที่มี email อยู่ในนี้จะ: (1) ไม่เห็น Plan modal (2) เห็น Dev Dashboard ใน sidebar
@@ -4970,7 +4970,7 @@ function DevDashboardPage({ currentUser, showToast }) {
     )
   );
 }
-function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, setMembers, setMembersState, myTeams, setCurrentTeam, setPage, showToast, addLog, pendingMembers, setPendingMembers, autoJoinCode, setAutoJoinCode, processInvite, setInviteWaitingTeam }) {
+function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, setMembers, setMembersState, myTeams, setCurrentTeam, setPage, showToast, addLog, pendingMembers, setPendingMembers, autoJoinCode, setAutoJoinCode, processInvite, setInviteWaitingTeam, isUnlimitedPlan }) {
   const [showCreate, setShowCreate] = useState(false);
   const [teamName, setTeamName] = useState('');
   const [inviteCode, setInviteCode] = useState(autoJoinCode || '');
@@ -5006,11 +5006,26 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
     try {
       await api.insert('teams', t);
       await api.insert('members', newMember);
-      (setTeamsState || setTeams)(p => [...p, t]);
-      (setMembersState || setMembers)(p => [...p, newMember]);
+      // [v26-FIX] ยังไม่อัพเดต local state จนกว่าจะเลือก Plan เสร็จ
       // บันทึก pending team ไว้ รอเลือก Plan
       setPendingTeam({ team: t, member: newMember });
-      setPlanStep('plan');
+      // [v26-FIX] ถ้าเป็น Unlimited/Paid Plan อยู่แล้ว → ข้าม plan step (selectPlan free อัตโนมัติ)
+      if (isUnlimitedPlan) {
+        // Unlimited user: ไม่ต้องเลือก Plan → selectPlan('free') อัตโนมัติ แต่ทีมไม่มี limit
+        // อัพเดต state ทันที แล้ว navigate ไป dashboard
+        (setTeamsState || setTeams)(p => [...p, t]);
+        (setMembersState || setMembers)(p => [...p, newMember]);
+        setCurrentTeam(t);
+        setPage('dashboard');
+        setPendingTeam(null);
+        setTeamName('');
+        setShowCreate(false);
+        showToast(`ทีม "${t.name}" สร้างสำเร็จ!`);
+        // Call selectPlan in background (fire & forget) เพื่อบันทึก plan record
+        api.selectPlan(t.id, 'free', currentUser.email, currentUser.name, t.name).catch(() => {});
+      } else {
+        setPlanStep('plan');
+      }
     } catch(e) {
       showToast(`สร้างทีมล้มเหลว: ${e.message}`, 'error');
     } finally {
@@ -5022,9 +5037,12 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
   const selectPlan = async (plan) => {
     if (!pendingTeam || selectingPlan) return;
     setSelectingPlan(true);
-    const { team } = pendingTeam;
+    const { team, member } = pendingTeam;
     try {
       const res = await api.selectPlan(team.id, plan, currentUser.email, currentUser.name, team.name);
+      // [v26-FIX] อัพเดต local state หลัง selectPlan สำเร็จ → ทีมจะแสดงใน list
+      (setTeamsState || setTeams)(p => [...p, team]);
+      (setMembersState || setMembers)(p => [...p, member]);
       if (plan === 'free') {
         showToast(`ทีม "${team.name}" สร้างสำเร็จ! Free Plan พร้อมใช้งาน`);
       } else {
@@ -5177,9 +5195,8 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
       })(),
       h('div', { style:{display:'flex', gap:'10px'} },
         (()=>{
-          // [v24] Free Plan: max 1 team
-          const isFP = !(window.__QAH_SUPER_ADMINS__||'').split(',').map(e=>e.trim().toLowerCase()).filter(Boolean).includes((currentUser?.email||'').toLowerCase());
-          const atTeamLimit = isFP && myTeams.length >= 1;
+          // [v26-FIX] Unlimited Plan สร้างทีมได้ไม่จำกัด
+          const atTeamLimit = !isUnlimitedPlan && myTeams.length >= 1;
           return h('button', {
             className:'btn btn-primary',
             style:{flex:1, justifyContent:'center', opacity: atTeamLimit ? 0.45 : 1, cursor: atTeamLimit ? 'not-allowed' : 'pointer'},
@@ -7078,7 +7095,7 @@ function DashboardPage({ teamTCs, teamDefects, teamProjects, teamTasks, navigate
 }
 
 // ─── PROJECTS PAGE ────────────────────────────────────────────────────────────
-function ProjectsPage({ teamProjects, setProjects, tasks, setTasks, testCases, setTestCases, defects, setDefects, setProjectsState, setTasksState, setTestCasesState, setDefectsState, teamTasks, currentTeam, currentUser, canEdit, canDelete, showToast, addLog, navigate, USE_GAS }) {
+function ProjectsPage({ teamProjects, setProjects, tasks, setTasks, testCases, setTestCases, defects, setDefects, setProjectsState, setTasksState, setTestCasesState, setDefectsState, teamTasks, currentTeam, currentUser, canEdit, canDelete, showToast, addLog, navigate, USE_GAS, isUnlimitedPlan }) {
   const [showModal, setShowModal] = useState(false);
   const [editProj, setEditProj] = useState(null);
   const [form, setForm] = useState({ name:'', description:'', status:'Active', startDate:'', endDate:'', tcMode:'standard' });
@@ -7088,10 +7105,8 @@ function ProjectsPage({ teamProjects, setProjects, tasks, setTasks, testCases, s
   const filtered = teamProjects.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
 
   const openCreate = () => { setForm({name:'',description:'',status:'Active',startDate:'',endDate:'',tcMode:'standard'}); setEditProj(null); setShowModal(true); };
-  // [v24] Free Plan limit check helpers
-  const _isSuperAdmin = (window.__QAH_SUPER_ADMINS__||'').split(',').map(e=>e.trim().toLowerCase()).filter(Boolean);
-  const _isFreePlan = !_isSuperAdmin.includes((currentUser?.email||'').toLowerCase());
-  const atProjectLimit = _isFreePlan && teamProjects.length >= 1;
+  // [v26-FIX] ใช้ isUnlimitedPlan prop (อัพเดตทันทีหลัง upgradePlan) แทน window check
+  const atProjectLimit = !isUnlimitedPlan && teamProjects.length >= 1;
   const openEdit = (p) => { setForm({name:p.name,description:p.description||'',status:p.status||'Active',startDate:p.startDate||'',endDate:p.endDate||'',tcMode:p.tcMode||'standard'}); setEditProj(p); setShowModal(true); };
 
   const save = () => {
@@ -7837,7 +7852,7 @@ function TaskDashboard({ task, project, taskTCs, taskDefects, defects }) {
 }
 
 // ─── PROJECT DETAIL PAGE ──────────────────────────────────────────────────────
-function ProjectDetailPage({ navCtx, projects, tasks, setTasks, testCases, setTestCases, defects, setDefects, setTasksState, setTestCasesState, setDefectsState, teamTCs, teamTasks, currentUser, currentTeam, canEdit, canDelete, showToast, addLog, navigate, USE_GAS }) {
+function ProjectDetailPage({ navCtx, projects, tasks, setTasks, testCases, setTestCases, defects, setDefects, setTasksState, setTestCasesState, setDefectsState, teamTCs, teamTasks, currentUser, currentTeam, canEdit, canDelete, showToast, addLog, navigate, USE_GAS, isUnlimitedPlan }) {
   const project = projects.find(p => p.id === navCtx.projectId);
   const [showModal, setShowModal] = useState(false);
   const [editTask, setEditTask] = useState(null);
@@ -7865,11 +7880,9 @@ function ProjectDetailPage({ navCtx, projects, tasks, setTasks, testCases, setTe
   };
 
   const openCreate = () => { setForm({name:'',description:'',status:'Active',priority:'Medium',assignee:''}); setEditTask(null); setShowModal(true); };
-  // [v24] Free Plan task limit
-  const _saFPTask=(window.__QAH_SUPER_ADMINS__||'').split(',').map(e=>e.trim().toLowerCase()).filter(Boolean);
-  const _isFreePlanTask=!_saFPTask.includes((currentUser?.email||'').toLowerCase());
+  // [v26-FIX] ใช้ isUnlimitedPlan prop แทน window check
   const ptasksForLimit=(tasks||[]).filter(t=>t.projectId===project?.id&&!t.isDeleted&&t.isDeleted!=='true');
-  const atTaskLimit=_isFreePlanTask&&ptasksForLimit.length>=2;
+  const atTaskLimit=!isUnlimitedPlan&&ptasksForLimit.length>=2;
   const openEdit = (t) => { setForm({name:t.name,description:t.description||'',status:t.status||'Active',priority:t.priority||'Medium',assignee:t.assignee||''}); setEditTask(t); setShowModal(true); };
 
   const deleteTask = async (t) => {
@@ -7995,7 +8008,7 @@ function ProjectDetailPage({ navCtx, projects, tasks, setTasks, testCases, setTe
 }
 
 // ─── TASK DETAIL PAGE (Test Cases) ───────────────────────────────────────────
-function TaskDetailPage({ navCtx, setNavCtx, projects, tasks, testCases, setTestCases, defects, setDefects, setTestCasesState, setDefectsState, currentUser, users, currentTeam, canEdit, canDelete, showToast, addLog, navigate, openDefectModal, USE_GAS, pendingTcStatusRef }) {
+function TaskDetailPage({ navCtx, setNavCtx, projects, tasks, testCases, setTestCases, defects, setDefects, setTestCasesState, setDefectsState, currentUser, users, currentTeam, canEdit, canDelete, showToast, addLog, navigate, openDefectModal, USE_GAS, pendingTcStatusRef, isUnlimitedPlan }) {
   const task = tasks.find(t => t.id === navCtx.taskId);
   const project = projects.find(p => p.id === navCtx.projectId);
   const [tab, setTab] = useState('testcases');
@@ -8346,9 +8359,8 @@ function TaskDetailPage({ navCtx, setNavCtx, projects, tasks, testCases, setTest
       h('div',null,h('h1',{className:'page-title'},task.name),h('p',{className:'page-subtitle'},`${taskTCs.length} Test Cases • Pass Rate: ${passRate}%`)),
       h('div',{className:'page-actions'},
         (()=>{
-          const _saTC=(window.__QAH_SUPER_ADMINS__||'').split(',').map(e=>e.trim().toLowerCase()).filter(Boolean);
-          const _isFreeTC=!_saTC.includes((currentUser?.email||'').toLowerCase());
-          const atTCLimit=_isFreeTC&&taskTCs.length>=30;
+          // [v26-FIX] ใช้ isUnlimitedPlan prop แทน window check
+          const atTCLimit=!isUnlimitedPlan&&taskTCs.length>=30;
           return h(React.Fragment,null,
             h('button',{
               className:'btn btn-primary',
@@ -9490,9 +9502,8 @@ function DefectsPage({ teamDefects, setDefects, setDefectsState, testCases, team
         selected.length>0&&h('button',{className:'btn',onClick:exportDefects},'Export ('+selected.length+')'),
         h('button',{className:'btn',onClick:exportDefects},'Export All'),
         (()=>{
-          const _saD=(window.__QAH_SUPER_ADMINS__||'').split(',').map(e=>e.trim().toLowerCase()).filter(Boolean);
-          const _isFreeD=!_saD.includes((currentUser?.email||'').toLowerCase());
-          const atDefLimit=_isFreeD&&teamDefects.length>=10;
+          // [v26-FIX] ใช้ isUnlimitedPlan prop แทน window check
+          const atDefLimit=!isUnlimitedPlan&&teamDefects.length>=10;
           return canEdit&&h('button',{
             className:'btn btn-primary',
             disabled:atDefLimit,

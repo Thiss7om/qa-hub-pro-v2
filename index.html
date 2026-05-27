@@ -9409,7 +9409,7 @@ function DefectsInTC({ tc, defects, setDefects, testCases, currentUser, canEdit,
 }
 
 // ─── DEFECTS PAGE ─────────────────────────────────────────────────────────────
-function DefectsPage({ teamDefects, setDefects, setDefectsState, testCases, teamTCs, teamTasks, teamProjects, currentUser, users, canEdit, canDelete, showToast, addLog, openDefectModal, navigate, USE_GAS, pendingDefStatusRef }) {
+function DefectsPage({ teamDefects, setDefects, setDefectsState, testCases, teamTCs, teamTasks, teamProjects, currentUser, users, canEdit, canDelete, showToast, addLog, openDefectModal, navigate, USE_GAS, pendingDefStatusRef, isUnlimitedPlan }) {
   const [search, setSearch] = useState('');
   const [filterSev, setFilterSev] = useState('');
   const [filterStatus, setFilterStatus] = useState('');

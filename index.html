@@ -15,7 +15,15 @@
            object-src 'none';
            base-uri 'self';">
 <title>QAHUBs — Test Management</title>
-<!-- QAHUBs v23 | 
+<!-- QAHUBs v24 |
+     [v24-SUPER-ADMIN-AUTO-PLAN] Super Admin (email ใน __QAH_SUPER_ADMINS__) ได้รับ Unlimited Plan อัตโนมัติทันทีหลัง Login
+     [v24-FREE-PLAN-BANNER] Free Plan: แสดงแถบเหลืองด้านบนตลอดเวลา บอกให้ไป System Settings เพื่อ Upgrade
+     [v24-FREE-PLAN-LIMITS] Free Plan: ทีม 1 / Project 3 / Task 5 / TC 10 / Defect 20 — Dim ปุ่มเมื่อเต็ม
+     [v24-FREE-TC-IMPORT] Free Plan: Dim ปุ่ม Import Test Case เมื่อ TC เต็ม
+     [v24-TOKEN-REUSE] Token ใช้ซ้ำไม่ได้ — แสดง Popup แจ้งเตือน
+     [v24-TOKEN-EMAIL] Token ต้องตรงกับ Email ที่ซื้อ — ถ้าไม่ตรงแสดง Popup
+     [v24-TOKEN-FORMAT] แยก Token FREE (QAH-FREE-...) กับ UNLIMITED (QAH-UNL-...) ให้ชัดเจน
+     [v23-PREVIOUS] (ดูประวัติ v23 ด้านล่าง) 
      [v23-ADMIN-BELL-INLINE] Admin NotificationBell: อนุมัติ/ปฏิเสธคำขอเข้าทีมได้ใน dropdown ทันที ไม่ navigate ไปหน้า pending
      [v23-USER-BELL] เพิ่ม UserNotificationBell สำหรับ User ทั่วไป — realtime updates จาก polling เข้ากระดิ่ง แทน toast
      [v23-EMAIL-TEMPLATE] Email templates ใหม่: พื้นขาว header น้ำเงิน + Copy button บน OTP box
@@ -1216,7 +1224,7 @@ const detectionOpts = ['Positive','Negative'];
 // ─── GOOGLE SHEETS CONFIG ─────────────────────────────────────────────────────
 // ใส่ URL ของ Google Apps Script Web App ที่ Deploy แล้ว
 // [FIX VULN-06] SS_ID ถูกลบออกจาก client-side code แล้ว — อยู่ใน Code.gs เท่านั้น
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyhQgnpYvrlkFzCW20uQRWyzZBjYSBRML_XWc0gLFlJtE8-0QbIjpbrDovkQLASnCsO/exec'; // ← ใส่ GAS URL ใหม่หลัง re-deploy
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwfpjhlXr1OrzlKgd0PW5mZW6-_5ID30S5fag314dVOJbli00mjGboSNP-U8XwdJDvc/exec'; // ← ใส่ GAS URL ใหม่หลัง re-deploy
 
 // [v23-PLAN] Super Admin (Dev) emails — คั่นด้วย comma, ไม่มี space
 // User ที่มี email อยู่ในนี้จะ: (1) ไม่เห็น Plan modal (2) เห็น Dev Dashboard ใน sidebar
@@ -1514,7 +1522,7 @@ const api = {
   approveOrder(orderId, note) { return this._write({ action:'approveOrder', orderId, note: note||'' }); },
   rejectOrder(orderId, note)  { return this._write({ action:'rejectOrder',  orderId, note: note||'' }); },
   resendToken(teamId)         { return this._write({ action:'resendToken',  teamId }); },
-  saveSystemToken(teamId, authToken) { return this._write({ action:'saveSystemToken', teamId, authToken }); },
+  saveSystemToken(teamId, authToken, adminEmail) { return this._write({ action:'saveSystemToken', teamId, authToken, adminEmail: adminEmail||'' }); },
 
   // rawWrite — สำหรับ sendVerifyCode / verifyCode / login / register (ไม่ต้อง token)
   // ✅ กลับมาใช้ GET เหมือนเดิม
@@ -2281,10 +2289,36 @@ function App() {
     setPlanLimitType(m ? m[0] : 'PLAN_LIMIT_ITEM');
   };
 
+  // [v24] Super Admin auto Unlimited Plan on login — no need to upgrade
+  const [teamPlanData, setTeamPlanData] = useState(null);
+  useEffect(() => {
+    if (!currentTeam || !currentUser) { setTeamPlanData(null); return; }
+    if (isSuperAdminUser) {
+      // Super Admin gets unlimited plan automatically
+      setTeamPlanData({ plan: 'unlimited', status: 'active' });
+      return;
+    }
+    (async () => {
+      try {
+        const data = await api.getMyPlan(currentTeam.id);
+        setTeamPlanData(data || { plan: 'free', status: 'active' });
+      } catch(e) { setTeamPlanData({ plan: 'free', status: 'active' }); }
+    })();
+  }, [currentTeam?.id, isSuperAdminUser]); // eslint-disable-line
+
+  // Derived plan info
+  const currentPlan = isSuperAdminUser ? 'unlimited' : (teamPlanData?.plan || 'free');
+  const isFreePlan = currentPlan === 'free';
+  const isUnlimitedPlan = currentPlan === 'unlimited' || currentPlan === 'paid' || isSuperAdminUser;
+
+  // Free plan limits
+  const FREE_LIMITS = { teams: 1, projects: 3, tasks: 5, testCases: 10, defects: 20 };
+
   // [v23-PLAN] Trial warning — check on every team switch
   const [trialDaysLeft, setTrialDaysLeft] = useState(null);
   useEffect(() => {
     if (!currentTeam || !currentUser) { setTrialDaysLeft(null); return; }
+    if (isSuperAdminUser) { setTrialDaysLeft(null); return; }
     (async () => {
       try {
         const data = await api.getMyPlan(currentTeam.id);
@@ -2518,7 +2552,9 @@ function App() {
     sessionTimeoutMsg, setSessionTimeoutMsg,
     pendingMemberOpsRef, pendingTcStatusRef, pendingDefStatusRef,
     // [v23-PLAN]
-    isSuperAdminUser, showPlanLimitModal, trialDaysLeft };
+    isSuperAdminUser, showPlanLimitModal, trialDaysLeft,
+    // [v24] Plan info
+    currentPlan, isFreePlan, isUnlimitedPlan };
 
   // LOADING SCREEN
   if (loading || !tokenReady) {
@@ -2592,6 +2628,8 @@ function App() {
   return h(React.Fragment, null,
     h('div', { className: 'app' },
       h(Topbar, { ...ctx, navigate, sidebarOpen, toggleSidebar }),
+      // [v24] Free Plan banner — always shown when on free plan
+      currentUser && currentTeam && isFreePlan && h(FreePlanBanner, { navigate }),
       // [v18-PWDEXPIRY] Password warning banner (3 วัน ก่อนหมดอายุ)
       passwordWarning && h('div', { style:{background:'var(--amber-bg)',borderBottom:'1px solid var(--amber)',padding:'8px 24px',display:'flex',alignItems:'center',gap:'10px',fontSize:'13px',color:'var(--amber)',flexShrink:0} },
         h('span',{className:'ms ms-sm'},'warning'),
@@ -4717,8 +4755,25 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
         );
       })(),
       h('div', { style:{display:'flex', gap:'10px'} },
-        h('button', { className:'btn btn-primary', style:{flex:1, justifyContent:'center'}, onClick:()=>setShowCreate(true) }, '+ สร้างทีมใหม่'),
-        h('button', { className:'btn', style:{flex:1, justifyContent:'center'}, onClick:()=>setShowJoin(true) }, 'เข้าร่วมด้วย Code')
+        (()=>{
+          // [v24] Free Plan: max 1 team
+          const isFP = !(window.__QAH_SUPER_ADMINS__||'').split(',').map(e=>e.trim().toLowerCase()).filter(Boolean).includes((currentUser?.email||'').toLowerCase());
+          const atTeamLimit = isFP && myTeams.length >= 1;
+          return h('button', {
+            className:'btn btn-primary',
+            style:{flex:1, justifyContent:'center', opacity: atTeamLimit ? 0.45 : 1, cursor: atTeamLimit ? 'not-allowed' : 'pointer'},
+            disabled: atTeamLimit,
+            title: atTeamLimit ? 'Free Plan สร้างได้แค่ 1 ทีม — Upgrade เพื่อสร้างเพิ่ม' : '',
+            onClick: atTeamLimit ? undefined : ()=>setShowCreate(true)
+          },
+            h('span',{className:'ms ms-xs'},atTeamLimit ? 'lock' : 'group_add'),
+            ' + สร้างทีมใหม่',
+            atTeamLimit && h('span',{style:{fontSize:'10px',opacity:0.8,marginLeft:'4px'}},'(Free: 1 ทีม)')
+          );
+        })(),
+        h('button', { className:'btn', style:{flex:1, justifyContent:'center'}, onClick:()=>setShowJoin(true) },
+          h('span',{className:'ms ms-xs'},'login'), ' เข้าร่วมด้วย Code'
+        )
       ),
       showCreate && planStep === 'name' && h('div', { className:'card', style:{marginTop:'16px'} },
         h('p', { className:'card-title', style:{marginBottom:'12px'} }, 'สร้างทีมใหม่'),
@@ -5737,6 +5792,40 @@ function DatePicker({ value, onChange, placeholder, className }) {
 }
 
 // ─── SIDEBAR ─────────────────────────────────────────────────────────────────
+// ─── FREE PLAN BANNER ────────────────────────────────────────────────────────
+// แสดงแถบเหลืองด้านบนตลอดเวลาสำหรับ Free Plan
+function FreePlanBanner({ navigate }) {
+  return h('div', {
+    style:{
+      background:'linear-gradient(90deg,#d97706,#f59e0b,#d97706)',
+      color:'#fff', padding:'7px 20px',
+      display:'flex', alignItems:'center', justifyContent:'space-between',
+      fontSize:'13px', fontWeight:'600', flexShrink:0,
+      boxShadow:'0 2px 8px rgba(217,119,6,0.35)',
+      zIndex:200, position:'relative'
+    }
+  },
+    h('div', { style:{display:'flex',alignItems:'center',gap:'8px'} },
+      h('span',{className:'ms ms-sm',style:{color:'#fff'}},'workspace_premium'),
+      h('span',null,'คุณกำลังใช้งาน ',h('strong',null,'Free Plan'),' — มีข้อจำกัดในการใช้งาน')
+    ),
+    h('button', {
+      style:{
+        background:'rgba(255,255,255,0.25)', border:'1px solid rgba(255,255,255,0.5)',
+        color:'#fff', padding:'4px 14px', borderRadius:'6px', cursor:'pointer',
+        fontSize:'12px', fontWeight:'700', display:'flex', alignItems:'center', gap:'6px',
+        transition:'all 0.15s'
+      },
+      onMouseEnter:e=>{ e.currentTarget.style.background='rgba(255,255,255,0.38)'; },
+      onMouseLeave:e=>{ e.currentTarget.style.background='rgba(255,255,255,0.25)'; },
+      onClick:()=>navigate('system-settings')
+    },
+      h('span',{className:'ms ms-xs'},'upgrade'),
+      'Upgrade ที่ System Settings'
+    )
+  );
+}
+
 function Sidebar({ navigate, currentPage, navCtx, isAdmin, isSuperAdminUser, teamTCs, teamDefects, teamProjects, teamTasks, pendingMembers, currentTeam, sidebarOpen, closeSidebar }) {
   const nav = (pg) => { navigate(pg); if (closeSidebar) closeSidebar(); };
   const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('qah_sidebar_collapsed') === '1'; } catch { return false; } });
@@ -6571,6 +6660,10 @@ function ProjectsPage({ teamProjects, setProjects, tasks, setTasks, testCases, s
   const filtered = teamProjects.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
 
   const openCreate = () => { setForm({name:'',description:'',status:'Active',startDate:'',endDate:'',tcMode:'standard'}); setEditProj(null); setShowModal(true); };
+  // [v24] Free Plan limit check helpers
+  const _isSuperAdmin = (window.__QAH_SUPER_ADMINS__||'').split(',').map(e=>e.trim().toLowerCase()).filter(Boolean);
+  const _isFreePlan = !_isSuperAdmin.includes((currentUser?.email||'').toLowerCase());
+  const atProjectLimit = _isFreePlan && teamProjects.length >= 3;
   const openEdit = (p) => { setForm({name:p.name,description:p.description||'',status:p.status||'Active',startDate:p.startDate||'',endDate:p.endDate||'',tcMode:p.tcMode||'standard'}); setEditProj(p); setShowModal(true); };
 
   const save = () => {
@@ -6637,7 +6730,19 @@ function ProjectsPage({ teamProjects, setProjects, tasks, setTasks, testCases, s
   return h('div', null,
     h('div', { className:'page-header' },
       h('div', null, h('h1',{className:'page-title'},'Projects'), h('p',{className:'page-subtitle'},`${teamProjects.length} Projects`)),
-      canEdit && h('button', { className:'btn btn-primary', onClick:openCreate }, '+ New Project')
+      (()=>{
+          const disabled = atProjectLimit;
+          return h('button',{
+            className:'btn btn-primary',
+            disabled:!canEdit||disabled,
+            style:{opacity:(!canEdit||disabled)?0.45:1,cursor:(!canEdit||disabled)?'not-allowed':'pointer'},
+            title:disabled?'Free Plan: สร้างได้สูงสุด 3 Project — Upgrade ใน System Settings':'',
+            onClick:(!canEdit||disabled)?undefined:openCreate
+          },
+            h('span',{className:'ms ms-xs'},disabled?'lock':'create_new_folder'),
+            disabled?' + Project (เต็มแล้ว)':'+  New Project'
+          );
+        })()
     ),
     h('div', { className:'filter-bar' },
       h('input', { className:'search-input', placeholder:'ค้นหา Project...', value:search, onChange:e=>setSearch(e.target.value) })
@@ -7332,6 +7437,11 @@ function ProjectDetailPage({ navCtx, projects, tasks, setTasks, testCases, setTe
   };
 
   const openCreate = () => { setForm({name:'',description:'',status:'Active',priority:'Medium',assignee:''}); setEditTask(null); setShowModal(true); };
+  // [v24] Free Plan task limit
+  const _saFPTask=(window.__QAH_SUPER_ADMINS__||'').split(',').map(e=>e.trim().toLowerCase()).filter(Boolean);
+  const _isFreePlanTask=!_saFPTask.includes((currentUser?.email||'').toLowerCase());
+  const ptasksForLimit=(tasks||[]).filter(t=>t.projectId===project?.id&&!t.isDeleted&&t.isDeleted!=='true');
+  const atTaskLimit=_isFreePlanTask&&ptasksForLimit.length>=5;
   const openEdit = (t) => { setForm({name:t.name,description:t.description||'',status:t.status||'Active',priority:t.priority||'Medium',assignee:t.assignee||''}); setEditTask(t); setShowModal(true); };
 
   const deleteTask = async (t) => {
@@ -7390,7 +7500,19 @@ function ProjectDetailPage({ navCtx, projects, tasks, setTasks, testCases, setTe
         h('h1',{className:'page-title'},project.name),
         h('p',{className:'page-subtitle'},project.description||'')
       ),
-      canEdit && h('button',{className:'btn btn-primary',onClick:openCreate},'+ New Task')
+      (()=>{
+        const dis = atTaskLimit;
+        return h('button',{
+          className:'btn btn-primary',
+          disabled:!canEdit||dis,
+          style:{opacity:(!canEdit||dis)?0.45:1,cursor:(!canEdit||dis)?'not-allowed':'pointer'},
+          title:dis?'Free Plan: สร้างได้สูงสุด 5 Task — Upgrade ใน System Settings':'',
+          onClick:(!canEdit||dis)?undefined:openCreate
+        },
+          h('span',{className:'ms ms-xs'},dis?'lock':'add_task'),
+          dis?' + Task (เต็มแล้ว)':'+  New Task'
+        );
+      })()
     ),
     h('div',{className:'stats-grid'},
       h('div',{className:'stat-card'},h('div',{className:'stat-label'},'Tasks'),h('div',{className:'stat-value',style:{color:'var(--accent)'}},ptasks.length)),
@@ -7795,9 +7917,35 @@ function TaskDetailPage({ navCtx, setNavCtx, projects, tasks, testCases, setTest
     h('div',{className:'page-header'},
       h('div',null,h('h1',{className:'page-title'},task.name),h('p',{className:'page-subtitle'},`${taskTCs.length} Test Cases • Pass Rate: ${passRate}%`)),
       h('div',{className:'page-actions'},
-        canEdit&&h('button',{className:'btn btn-primary',onClick:()=>{setEditTC(null);setShowTC(true);}},'+  New TC'),
-        h('button',{className:'btn',onClick:downloadTemplate},'Download Template'),
-        canEdit&&h('label',{className:'btn',style:{cursor:'pointer'}},h('input',{type:'file',accept:'.xlsx,.xls',onChange:importTCs}),'Import Excel'),
+        (()=>{
+          const _saTC=(window.__QAH_SUPER_ADMINS__||'').split(',').map(e=>e.trim().toLowerCase()).filter(Boolean);
+          const _isFreeTC=!_saTC.includes((currentUser?.email||'').toLowerCase());
+          const atTCLimit=_isFreeTC&&taskTCs.length>=10;
+          return h(React.Fragment,null,
+            h('button',{
+              className:'btn btn-primary',
+              disabled:!canEdit||atTCLimit,
+              style:{opacity:(!canEdit||atTCLimit)?0.45:1,cursor:(!canEdit||atTCLimit)?'not-allowed':'pointer'},
+              title:atTCLimit?'Free Plan: สร้างได้สูงสุด 10 Test Case — Upgrade ใน System Settings':'',
+              onClick:(!canEdit||atTCLimit)?undefined:()=>{setEditTC(null);setShowTC(true);}
+            },
+              h('span',{className:'ms ms-xs'},atTCLimit?'lock':'science'),
+              atTCLimit?' + TC (เต็มแล้ว)':'+  New TC'
+            ),
+            h('button',{className:'btn',onClick:downloadTemplate},
+              h('span',{className:'ms ms-xs'},'download_for_offline'),' Download Template'
+            ),
+            canEdit&&h('label',{
+              className:'btn',
+              style:{cursor:atTCLimit?'not-allowed':'pointer',opacity:atTCLimit?0.45:1,pointerEvents:atTCLimit?'none':'auto'},
+              title:atTCLimit?'Free Plan: Import ไม่ได้เนื่องจาก TC เต็มแล้ว':'Import Test Cases จาก Excel'
+            },
+              atTCLimit&&h('span',{className:'ms ms-xs',style:{marginRight:'4px'}},'lock'),
+              h('input',{type:'file',accept:'.xlsx,.xls',onChange:atTCLimit?undefined:importTCs,disabled:atTCLimit}),
+              atTCLimit?'Import (เต็มแล้ว)':'Import Excel'
+            ),
+          );
+        })(),
         h('button',{className:'btn',onClick:()=>exportTCs('task')},'Export Task'),
         h('button',{className:'btn',style:{color:'var(--cyan)',borderColor:'var(--cyan)',background:'var(--cyan-bg)'},onClick:()=>{
           // Export TC แยก Sheet ตาม Project > Task (ทั้ง Team)
@@ -8913,7 +9061,21 @@ function DefectsPage({ teamDefects, setDefects, setDefectsState, testCases, team
       h('div',{className:'flex'},
         selected.length>0&&h('button',{className:'btn',onClick:exportDefects},'Export ('+selected.length+')'),
         h('button',{className:'btn',onClick:exportDefects},'Export All'),
-        canEdit&&h('button',{className:'btn btn-primary',onClick:()=>openDefectModal(null,null,teamTCs)},'+  New Defect')
+        (()=>{
+          const _saD=(window.__QAH_SUPER_ADMINS__||'').split(',').map(e=>e.trim().toLowerCase()).filter(Boolean);
+          const _isFreeD=!_saD.includes((currentUser?.email||'').toLowerCase());
+          const atDefLimit=_isFreeD&&teamDefects.length>=20;
+          return canEdit&&h('button',{
+            className:'btn btn-primary',
+            disabled:atDefLimit,
+            style:{opacity:atDefLimit?0.45:1,cursor:atDefLimit?'not-allowed':'pointer'},
+            title:atDefLimit?'Free Plan: Defect สูงสุด 20 รายการ — Upgrade ใน System Settings':'',
+            onClick:atDefLimit?undefined:()=>openDefectModal(null,null,teamTCs)
+          },
+            h('span',{className:'ms ms-xs'},atDefLimit?'lock':'bug_report'),
+            atDefLimit?'+  Defect (เต็มแล้ว)':'+  New Defect'
+          );
+        })()
       )
     ),
     h('div',{className:'stats-grid'},
@@ -9290,15 +9452,48 @@ function SystemSettingsTab({ currentUser, currentTeam, showToast }) {
     setUnlocking(p => ({...p, [email]: false}));
   };
 
-  // [v23-PLAN] บันทึก Token ใน System Settings
+  // [v24] Token state for validation popup
+  const [tokenErrorPopup, setTokenErrorPopup] = useState(null); // null | 'reused' | 'email_mismatch' | 'fraud'
+
+  // [v24] Token format validation
+  // FREE Token format:  QAH-FREE-XXXXXXXXXXXXXXXX  (prefix QAH-FREE-)
+  // UNLIMITED Token:    QAH-UNL-XXXXXXXXXXXXXXXX   (prefix QAH-UNL-)
+  const detectTokenType = (tok) => {
+    if (!tok) return null;
+    const t = tok.trim().toUpperCase();
+    if (t.startsWith('QAH-FREE-')) return 'free';
+    if (t.startsWith('QAH-UNL-')) return 'unlimited';
+    return 'unknown';
+  };
+
+  // [v23-PLAN] บันทึก Token ใน System Settings with validation
   const saveToken = async () => {
     if (!authToken.trim()) { showToast('กรุณากรอก Auth Token', 'error'); return; }
     if (!currentTeam) { showToast('ไม่พบ Team', 'error'); return; }
     setTokenSaving(true);
     try {
-      await api.saveSystemToken(currentTeam.id, authToken.trim());
-      showToast('บันทึก Token สำเร็จ — Unlimited Plan พร้อมใช้งาน');
-      setPlanInfo(p => ({ ...p, token: authToken.trim(), status:'active', plan: p?.plan === 'paid_trial' ? 'paid' : p?.plan }));
+      const res = await api.rawWrite({
+        action: 'saveSystemToken',
+        token: getAuthToken(),
+        teamId: currentTeam.id,
+        authToken: authToken.trim(),
+        adminEmail: currentUser?.email || ''
+      });
+      if (!res || res.ok === false) {
+        const errMsg = String(res?.error || '');
+        if (errMsg.includes('TOKEN_REUSED') || errMsg.includes('already used')) {
+          setTokenErrorPopup('reused');
+        } else if (errMsg.includes('EMAIL_MISMATCH') || errMsg.includes('email')) {
+          setTokenErrorPopup('email_mismatch');
+        } else if (errMsg.includes('FRAUD') || errMsg.includes('invalid') || errMsg.includes('tamper')) {
+          setTokenErrorPopup('fraud');
+        } else {
+          showToast('บันทึก Token ล้มเหลว: ' + (res?.error || 'Unknown error'), 'error');
+        }
+      } else {
+        showToast('บันทึก Token สำเร็จ — Unlimited Plan พร้อมใช้งาน');
+        setPlanInfo(p => ({ ...p, token: authToken.trim(), status:'active', plan: p?.plan === 'paid_trial' ? 'paid' : p?.plan }));
+      }
     } catch(e) { showToast('บันทึก Token ล้มเหลว: ' + e.message, 'error'); }
     setTokenSaving(false);
   };
@@ -9318,10 +9513,24 @@ function SystemSettingsTab({ currentUser, currentTeam, showToast }) {
 
   const planLabel = (p) => {
     if (!p) return '—';
-    if (p === 'free')        return '🟢 Free Plan';
-    if (p === 'paid_trial')  return '🟡 Unlimited Trial';
-    if (p === 'paid')        return '✅ Unlimited Plan';
+    if (p === 'free')        return 'Free Plan';
+    if (p === 'paid_trial')  return 'Unlimited Trial';
+    if (p === 'paid')        return 'Unlimited Plan';
     return p;
+  };
+
+  const planIcon = (p) => {
+    if (p === 'free')        return 'sentiment_neutral';
+    if (p === 'paid_trial')  return 'hourglass_top';
+    if (p === 'paid')        return 'workspace_premium';
+    return 'help';
+  };
+
+  const planColor = (p) => {
+    if (p === 'free')        return 'var(--text2)';
+    if (p === 'paid_trial')  return 'var(--amber)';
+    if (p === 'paid')        return 'var(--green)';
+    return 'var(--text3)';
   };
 
   if (loading) return h('div',{className:'card',style:{padding:'32px',textAlign:'center',color:'var(--text3)'}},
@@ -9341,48 +9550,108 @@ function SystemSettingsTab({ currentUser, currentTeam, showToast }) {
       planLoading
         ? h('div',{style:{padding:'20px',textAlign:'center',color:'var(--text3)'}},'กำลังโหลด Plan...')
         : h('div',{style:{padding:'16px 20px'}},
-            // สถานะ Plan ปัจจุบัน
-            h('div',{style:{display:'flex',alignItems:'center',gap:'12px',padding:'12px 16px',background:'var(--bg3)',borderRadius:'var(--r2)',marginBottom:'16px'}},
+            // [v24] สถานะ Plan ปัจจุบัน — แยก Free vs Unlimited ชัดเจน
+            h('div',{style:{display:'flex',alignItems:'center',gap:'14px',padding:'16px',
+              background: planInfo?.plan==='paid'?'var(--green-bg)':planInfo?.plan==='paid_trial'?'var(--amber-bg)':'var(--bg3)',
+              borderRadius:'var(--r2)',marginBottom:'16px',
+              border:'1px solid '+(planInfo?.plan==='paid'?'var(--green)':planInfo?.plan==='paid_trial'?'var(--amber)':'var(--border)')
+            }},
+              h('div',{style:{
+                width:'48px',height:'48px',borderRadius:'12px',flexShrink:0,
+                display:'flex',alignItems:'center',justifyContent:'center',
+                background: planInfo?.plan==='paid'?'var(--green)':planInfo?.plan==='paid_trial'?'var(--amber)':'var(--bg4)',
+              }},
+                h('span',{className:'ms ms-lg',style:{color:'#fff',fontSize:'24px'}},planIcon(planInfo?.plan))
+              ),
               h('div',{style:{flex:1}},
-                h('div',{style:{fontSize:'11px',color:'var(--text3)',fontWeight:'600',textTransform:'uppercase',letterSpacing:'1px',marginBottom:'4px'}},'Plan ปัจจุบัน'),
-                h('div',{style:{fontWeight:'700',fontSize:'16px'}}, planLabel(planInfo?.plan)),
+                h('div',{style:{fontSize:'10px',color:'var(--text3)',fontWeight:'700',textTransform:'uppercase',letterSpacing:'1.2px',marginBottom:'4px'}},'Plan ปัจจุบัน'),
+                h('div',{style:{fontWeight:'800',fontSize:'18px',color:planColor(planInfo?.plan),display:'flex',alignItems:'center',gap:'8px'}},
+                  planLabel(planInfo?.plan),
+                  planInfo?.plan==='free' && h('span',{style:{fontSize:'10px',background:'var(--bg4)',color:'var(--text3)',padding:'2px 8px',borderRadius:'10px',fontWeight:'600',fontFamily:'var(--mono)'}},'FREE'),
+                  planInfo?.plan==='paid' && h('span',{style:{fontSize:'10px',background:'var(--green)',color:'#fff',padding:'2px 8px',borderRadius:'10px',fontWeight:'700',fontFamily:'var(--mono)'}},'UNLIMITED'),
+                  planInfo?.plan==='paid_trial' && h('span',{style:{fontSize:'10px',background:'var(--amber)',color:'#fff',padding:'2px 8px',borderRadius:'10px',fontWeight:'700',fontFamily:'var(--mono)'}},'TRIAL')
+                ),
+                planInfo?.plan === 'free' && h('div',{style:{fontSize:'12px',color:'var(--text3)',marginTop:'4px'}},
+                  'ทีม 1 | Project 3 | Task 5 | Test Case 10 | Defect 20'
+                ),
                 planInfo?.plan === 'paid_trial' && planInfo?.trialEndAt &&
-                  h('div',{style:{fontSize:'12px',color:'var(--amber)',marginTop:'4px'}},
-                    `⏱ Trial สิ้นสุด: ${new Date(planInfo.trialEndAt).toLocaleDateString('th-TH')}`
+                  h('div',{style:{fontSize:'12px',color:'var(--amber)',marginTop:'4px',display:'flex',alignItems:'center',gap:'4px'}},
+                    h('span',{className:'ms ms-xs'},'schedule'),
+                    ` Trial สิ้นสุด: ${new Date(planInfo.trialEndAt).toLocaleDateString('th-TH')}`
                   ),
-                planInfo?.status === 'not_selected' &&
-                  h('div',{style:{fontSize:'12px',color:'var(--text3)',marginTop:'4px'}},'ยังไม่ได้เลือก Plan')
+                planInfo?.plan === 'paid' && h('div',{style:{fontSize:'12px',color:'var(--green)',marginTop:'4px',display:'flex',alignItems:'center',gap:'4px'}},
+                  h('span',{className:'ms ms-xs'},'all_inclusive'), 'ไม่จำกัดจำนวน — เต็มสิทธิ์'
+                )
               ),
               // ปุ่ม Upgrade (แสดงเฉพาะ Free Plan)
               planInfo?.plan === 'free' && h('button',{
                 className:'btn btn-sm',
-                style:{background:'var(--amber)',color:'#fff',border:'none',display:'flex',alignItems:'center',gap:'4px',flexShrink:0},
+                style:{background:'linear-gradient(135deg,var(--amber),#f97316)',color:'#fff',border:'none',display:'flex',alignItems:'center',gap:'4px',flexShrink:0,fontWeight:'700',boxShadow:'0 4px 12px rgba(245,158,11,0.35)'},
                 onClick: upgradeToPaid, disabled: upgrading
-              }, h('span',{className:'ms ms-xs'}, upgrading?'autorenew':'upgrade'),
-                upgrading ? 'กำลัง Upgrade...' : 'Upgrade เป็น Unlimited'
+              }, h('span',{className:'ms ms-xs'}, upgrading?'sync':'rocket_launch'),
+                upgrading ? 'กำลัง...' : 'Upgrade'
               )
             ),
 
-            // Token Update (แสดงเฉพาะ paid / paid_trial)
+            // [v24] Token Update with type distinction (Free vs Unlimited)
             (planInfo?.plan === 'paid' || planInfo?.plan === 'paid_trial') && h('div',null,
-              h('div',{style:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'8px'}},
-                h('span',{className:'ms ms-sm',style:{color:'var(--green)'}},'key'),
-                h('span',{style:{fontWeight:'600',fontSize:'14px'}},'Update Auth Token'),
+              h('div',{style:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'10px'}},
+                h('span',{className:'ms ms-sm',style:{color:'var(--cyan)'}},'vpn_key'),
+                h('span',{style:{fontWeight:'700',fontSize:'14px'}},'กรอก Auth Token'),
                 planInfo?.status === 'trial' &&
-                  h('span',{className:'badge',style:{background:'var(--amber-bg)',color:'var(--amber)',borderColor:'var(--amber)',fontSize:'10px'}},'Trial')
+                  h('span',{style:{fontSize:'11px',background:'var(--amber)',color:'#fff',padding:'2px 8px',borderRadius:'10px',fontWeight:'700'}},'TRIAL — ต้องใช้ Token UNLIMITED')
               ),
-              h('p',{style:{fontSize:'12px',color:'var(--text2)',marginBottom:'10px',lineHeight:'1.7'}},
+              // Token type legend
+              h('div',{style:{display:'flex',gap:'10px',marginBottom:'12px'}},
+                h('div',{style:{flex:1,padding:'10px',borderRadius:'var(--r)',border:'1px solid var(--border)',background:'var(--bg3)'}},
+                  h('div',{style:{fontSize:'10px',fontWeight:'700',color:'var(--text3)',marginBottom:'4px',display:'flex',alignItems:'center',gap:'4px'}},
+                    h('span',{className:'ms ms-xs',style:{color:'var(--text3)'}},'token'), 'FREE TOKEN FORMAT'
+                  ),
+                  h('div',{style:{fontFamily:'var(--mono)',fontSize:'11px',color:'var(--text2)',background:'var(--bg4)',padding:'4px 8px',borderRadius:'4px'}},
+                    'QAH-FREE-XXXXXXXXXXXXXXXX'
+                  ),
+                  h('div',{style:{fontSize:'10px',color:'var(--text3)',marginTop:'4px'}},'สำหรับ: ยังไม่รองรับ (สงวนไว้)')
+                ),
+                h('div',{style:{flex:1,padding:'10px',borderRadius:'var(--r)',border:'2px solid var(--green)',background:'var(--green-bg)'}},
+                  h('div',{style:{fontSize:'10px',fontWeight:'700',color:'var(--green)',marginBottom:'4px',display:'flex',alignItems:'center',gap:'4px'}},
+                    h('span',{className:'ms ms-xs',style:{color:'var(--green)'}},'workspace_premium'), 'UNLIMITED TOKEN FORMAT'
+                  ),
+                  h('div',{style:{fontFamily:'var(--mono)',fontSize:'11px',color:'var(--green)',background:'rgba(16,185,129,0.1)',padding:'4px 8px',borderRadius:'4px',fontWeight:'600'}},
+                    'QAH-UNL-XXXXXXXXXXXXXXXX'
+                  ),
+                  h('div',{style:{fontSize:'10px',color:'var(--green)',marginTop:'4px'}},
+                    h('span',{className:'ms ms-xs'},'check_circle'), ' ต้องใช้ Token นี้เพื่อเปิด Unlimited'
+                  )
+                )
+              ),
+              // Token detected type indicator
+              authToken && h('div',{style:{
+                display:'flex',alignItems:'center',gap:'6px',
+                padding:'6px 10px',marginBottom:'8px',borderRadius:'var(--r)',
+                background: detectTokenType(authToken)==='unlimited'?'var(--green-bg)':detectTokenType(authToken)==='free'?'var(--amber-bg)':'var(--red-bg)',
+                border:'1px solid '+(detectTokenType(authToken)==='unlimited'?'var(--green)':detectTokenType(authToken)==='free'?'var(--amber)':'var(--red)'),
+                fontSize:'12px'
+              }},
+                h('span',{className:'ms ms-xs',style:{color:detectTokenType(authToken)==='unlimited'?'var(--green)':detectTokenType(authToken)==='free'?'var(--amber)':'var(--red)'}},
+                  detectTokenType(authToken)==='unlimited'?'check_circle':detectTokenType(authToken)==='free'?'info':'warning'
+                ),
+                detectTokenType(authToken)==='unlimited' ? 'Token ประเภท UNLIMITED — ถูกต้อง' :
+                detectTokenType(authToken)==='free' ? 'Token ประเภท FREE — ยังไม่รองรับ' :
+                'รูปแบบ Token ไม่ถูกต้อง (ต้องขึ้นต้นด้วย QAH-UNL- หรือ QAH-FREE-)'
+              ),
+              h('p',{style:{fontSize:'12px',color:'var(--text2)',marginBottom:'8px',lineHeight:'1.7'}},
                 planInfo?.status === 'trial'
-                  ? 'กรอก Token Unlimited ที่ได้รับทาง Email (หลัง Dev อนุมัติการชำระเงิน) เพื่อเปิดใช้งานแบบถาวร'
-                  : 'กรอก Token ใหม่ที่ได้รับจาก Dev เพื่ออัพเดทสิทธิ์'
+                  ? 'กรอก Token Unlimited (QAH-UNL-...) ที่ได้รับทาง Email หลัง Dev อนุมัติการชำระเงิน เพื่อเปิดใช้งานแบบถาวร'
+                  : 'กรอก Token Unlimited (QAH-UNL-...) ที่ได้รับจาก Dev เพื่ออัพเดทสิทธิ์'
               ),
               h('div',{style:{display:'flex',gap:'8px',alignItems:'center'}},
                 h('input',{
                   className:'form-input', type:'text',
-                  placeholder:'Auth Token (จาก Email ที่ได้รับ)',
+                  placeholder:'QAH-UNL-xxxxxxxxxxxxxxxx',
                   value: authToken,
                   onChange: e => setAuthToken_(e.target.value),
-                  style:{fontFamily:'var(--mono)',fontSize:'13px',letterSpacing:'1px',flex:1}
+                  style:{fontFamily:'var(--mono)',fontSize:'13px',letterSpacing:'1px',flex:1,
+                    borderColor: authToken?(detectTokenType(authToken)==='unlimited'?'var(--green)':detectTokenType(authToken)==='free'?'var(--amber)':'var(--red)'):'var(--border2)'}
                 }),
                 h('button',{
                   className:'btn btn-primary', onClick: saveToken, disabled: tokenSaving || !authToken.trim(),
@@ -9400,11 +9669,13 @@ function SystemSettingsTab({ currentUser, currentTeam, showToast }) {
               )
             ),
 
-            // Free info box
+            // [v24] Free info box
             planInfo?.plan === 'free' && h('div',{style:{background:'var(--bg4)',borderRadius:'var(--r)',padding:'10px 14px',fontSize:'12px',color:'var(--text2)',marginTop:'8px'}},
               h('span',{className:'ms ms-xs',style:{marginRight:'4px',color:'var(--text3)'}},'info'),
-              'Free Plan: Project 1 / Task 2 / Test Case 30 / Defect 10'
-            )
+              'Free Plan: ทีม 1 | Project 3 | Task 5/Project | Test Case 10/Task | Defect 20'
+            ),
+            // [v24] Token error popup
+            tokenErrorPopup && h(TokenErrorPopup, { type: tokenErrorPopup, onClose: ()=>setTokenErrorPopup(null) })
           )
     ),
 
@@ -10052,6 +10323,72 @@ function Modal({ title, onClose, children, size='', titleActions=null }) {
   return ReactDOM.createPortal(el, document.getElementById('modal-root'));
 }
 // DefectModal is rendered at App level - no portal needed for it
+
+// ─── TOKEN VALIDATION POPUP ──────────────────────────────────────────────────
+// แสดง popup เมื่อ Token ถูกใช้ซ้ำ หรือ Email ไม่ตรงกับ Token
+function TokenErrorPopup({ type, onClose }) {
+  const isReused = type === 'reused';
+  const isEmailMismatch = type === 'email_mismatch';
+  const isFraud = type === 'fraud';
+
+  const config = {
+    reused: {
+      icon: 'token',
+      color: 'var(--amber)',
+      bg: 'var(--amber-bg)',
+      border: 'var(--amber)',
+      title: 'Token ถูกใช้งานแล้ว',
+      message: 'Token นี้เคยถูกใช้งานแล้วในระบบ ไม่สามารถนำมาใช้ซ้ำได้ กรุณาติดต่อ Admin เพื่อขอ Token ใหม่'
+    },
+    email_mismatch: {
+      icon: 'gpp_bad',
+      color: 'var(--red)',
+      bg: 'var(--red-bg)',
+      border: 'var(--red)',
+      title: 'Email ไม่ตรงกับ Token',
+      message: 'Token นี้ไม่ตรงกับ Email ที่ทำการซื้อ กรุณาตรวจสอบและใช้ Email ที่ถูกต้อง'
+    },
+    fraud: {
+      icon: 'security',
+      color: 'var(--red)',
+      bg: 'var(--red-bg)',
+      border: 'var(--red)',
+      title: 'พบการปลอมแปลง Token',
+      message: 'Token มีการปลอมแปลงหรือไม่ถูกต้อง ระบบตรวจพบความผิดปกติ กรุณาติดต่อ Admin เพื่อดำเนินการ'
+    }
+  };
+
+  const c = config[type] || config.reused;
+
+  const el = h('div', { className:'modal-overlay', style:{zIndex:10010} },
+    h('div', { className:'modal modal-sm', style:{maxWidth:'420px',height:'auto',border:'2px solid '+c.border} },
+      h('div', { className:'modal-header', style:{borderColor:c.border, background:c.bg} },
+        h('span', { className:'modal-title', style:{display:'flex',alignItems:'center',gap:'8px',color:c.color} },
+          h('span',{className:'ms ms-sm',style:{color:c.color}},c.icon), c.title
+        ),
+        h('button', { className:'modal-close', onClick:onClose }, h('span',{className:'ms ms-sm'},'close'))
+      ),
+      h('div', { className:'modal-body', style:{textAlign:'center',padding:'28px 24px'} },
+        h('div', { style:{
+          width:'64px',height:'64px',borderRadius:'50%',
+          background:c.bg, border:'2px solid '+c.border,
+          display:'flex',alignItems:'center',justifyContent:'center',
+          margin:'0 auto 16px'
+        }},
+          h('span',{className:'ms',style:{fontSize:'32px',color:c.color}},c.icon)
+        ),
+        h('p', { style:{color:'var(--text2)',fontSize:'14px',lineHeight:'1.7'} }, c.message)
+      ),
+      h('div', { className:'modal-footer', style:{justifyContent:'center'} },
+        h('button', { className:'btn btn-primary', onClick:onClose,
+          style:{background:c.color,borderColor:c.color,minWidth:'120px',justifyContent:'center'} },
+          h('span',{className:'ms ms-xs'},'check'), ' ตกลง'
+        )
+      )
+    )
+  );
+  return ReactDOM.createPortal(el, document.getElementById('modal-root'));
+}
 
 function ConfirmModal({ title, message, danger, onConfirm, onClose }) {
   const el = h('div',{className:'modal-overlay',style:{zIndex:10000}},

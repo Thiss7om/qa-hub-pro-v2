@@ -1489,7 +1489,7 @@ const api = {
     const bytes   = new TextEncoder().encode(jsonStr);
     let _bin = ''; for (let i = 0; i < bytes.length; i++) _bin += String.fromCharCode(bytes[i]);
     const b64 = btoa(_bin);
-    // [FIX] ถ้า payload ใหญ่เกิน ~6KB (เช่น มีรูปสลีป) ให้ใช้ POST แทน GET
+    // [FIX] ถ้า payload ใหญ่เกิน ~6KB (เช่น มีรูป Silp) ให้ใช้ POST แทน GET
     // เพราะ GAS GET URL มีขีดจำกัด และ ERR_CONNECTION_RESET เมื่อ URL ยาวเกิน
     let res;
     if (b64.length > 6000) {
@@ -1541,7 +1541,7 @@ const api = {
   rejectOrder(orderId, note)  { return this._write({ action:'rejectOrder',  orderId, note: note||'' }); },
   resendToken(teamId)         { return this._write({ action:'resendToken',  teamId }); },
   saveSystemToken(teamId, authToken, adminEmail) { return this._write({ action:'saveSystemToken', teamId, authToken, adminEmail: adminEmail||'' }); },
-  // [v26] ส่งสลีปการชำระเงิน — base64 encoded image
+  // [v26] ส่ง Silp การชำระเงิน — base64 encoded image
   submitSlip(teamId, teamName, adminEmail, adminName, slipFileName, slipBase64, slipType) {
     return this._write({ action:'submitSlip', teamId, teamName, adminEmail, adminName, slipFileName, slipBase64, slipType });
   },
@@ -4442,7 +4442,7 @@ function PaymentPopup({ onClose, onUseFree, planInfo, devSettings, currentUser, 
       h('div', { style:{background:'var(--amber-bg)',border:'1px solid var(--amber)',borderRadius:'var(--r2)',padding:'14px 18px',marginBottom:'20px',textAlign:'center'} },
         h('div', { style:{fontSize:'12px',color:'var(--amber)',fontWeight:'700',textTransform:'uppercase',letterSpacing:'1px',marginBottom:'4px'} }, 'ราคา Unlimited Plan'),
         h('div', { style:{fontSize:'28px',fontWeight:'800',color:'var(--amber)',fontFamily:'var(--mono)'} }, priceDisplay),
-        h('div', { style:{fontSize:'11px',color:'var(--text3)',marginTop:'4px'} }, 'ต่อทีม / ต่อเดือน')
+        h('div', { style:{fontSize:'11px',color:'var(--text3)',marginTop:'4px'} }, 'LIFETIME')
       ),
 
       h('div', { style:{display:'flex',flexDirection:'column',gap:'10px',marginBottom:'20px'} },
@@ -4531,7 +4531,7 @@ function PaymentPopup({ onClose, onUseFree, planInfo, devSettings, currentUser, 
 
   // ── [v26] Submit Slip to GAS ─────────────────────────────────────────────
   const submitSlip = async () => {
-    if (!slipFile) { showToast && showToast('กรุณาเลือกไฟล์สลีปก่อน', 'error'); return; }
+    if (!slipFile) { showToast && showToast('กรุณาเลือกไฟล์ Silp ก่อน', 'error'); return; }
     setSubmitting(true);
     try {
       const res = await api._write({
@@ -4544,10 +4544,10 @@ function PaymentPopup({ onClose, onUseFree, planInfo, devSettings, currentUser, 
         slipBase64: slipFile.base64,
         slipType: slipFile.type,
       });
-      showToast && showToast('ส่งสลีปเรียบร้อย — Admin จะตรวจสอบและส่ง Token ให้ทาง Email');
+      showToast && showToast('ส่ง Silp เรียบร้อย — Admin จะตรวจสอบและส่ง Token ให้ทาง Email');
       setStep('done');
     } catch(e) {
-      showToast && showToast('ส่งสลีปไม่สำเร็จ: ' + e.message, 'error');
+      showToast && showToast('ส่ง Silp ไม่สำเร็จ: ' + e.message, 'error');
     }
     setSubmitting(false);
   };
@@ -4556,7 +4556,7 @@ function PaymentPopup({ onClose, onUseFree, planInfo, devSettings, currentUser, 
   const StepDone = () =>
     h('div', { style:{padding:'32px 24px',textAlign:'center'} },
       h('span',{className:'ms',style:{fontSize:'56px',color:'var(--green)',display:'block',marginBottom:'12px'}},'task_alt'),
-      h('div',{style:{fontSize:'18px',fontWeight:'700',color:'var(--green)',marginBottom:'8px'}},'ส่งสลีปสำเร็จ!'),
+      h('div',{style:{fontSize:'18px',fontWeight:'700',color:'var(--green)',marginBottom:'8px'}},'ส่ง Silp สำเร็จ!'),
       h('p',{style:{fontSize:'13px',color:'var(--text2)',lineHeight:'1.8',marginBottom:'24px'}},
         'Admin ได้รับหลักฐานการชำระเงินแล้ว จะตรวจสอบและส่ง Auth Token ให้ทาง Email ของคุณ หลังจากได้รับ Token ให้นำไปกรอกใน System Settings'
       ),
@@ -4580,7 +4580,7 @@ function PaymentPopup({ onClose, onUseFree, planInfo, devSettings, currentUser, 
       h('div', { style:{background:'var(--amber-bg)',border:'1px solid var(--amber)',borderRadius:'var(--r2)',padding:'14px 18px',marginBottom:'16px',textAlign:'center'} },
         h('div', { style:{fontSize:'11px',color:'var(--amber)',fontWeight:'700',textTransform:'uppercase',letterSpacing:'1px',marginBottom:'2px'} }, 'ยอดที่ต้องชำระ'),
         h('div', { style:{fontSize:'32px',fontWeight:'800',color:'var(--amber)',fontFamily:'var(--mono)',lineHeight:'1'} }, priceDisplay),
-        h('div', { style:{fontSize:'11px',color:'var(--text3)',marginTop:'4px'} }, 'ต่อทีม / ต่อเดือน')
+        h('div', { style:{fontSize:'11px',color:'var(--text3)',marginTop:'4px'} }, 'LIFETIME')
       ),
 
       // Bank Info
@@ -4636,7 +4636,7 @@ function PaymentPopup({ onClose, onUseFree, planInfo, devSettings, currentUser, 
         ),
         h('ol', { style:{margin:'0',paddingLeft:'16px',fontSize:'12px',color:'var(--text2)',lineHeight:'2'} },
           h('li', null, `โอนเงินจำนวน ${priceDisplay} ไปยังบัญชีข้างต้น`),
-          h('li', null, 'อัพโหลดสลีปหลักฐานการโอนเงินด้านล่างนี้'),
+          h('li', null, 'อัพโหลด Silp หลักฐานการโอนเงินด้านล่างนี้'),
           h('li', null, 'Admin จะตรวจสอบและส่ง Auth Token ให้ทาง Email'),
           h('li', null, 'นำ Token ไปกรอกในช่อง Auth Token ใน System Settings')
         )
@@ -4645,7 +4645,7 @@ function PaymentPopup({ onClose, onUseFree, planInfo, devSettings, currentUser, 
       // Slip Upload Section — [v26] React-state based with submit button
       h('div', { style:{background:'var(--bg3)',border:'1px solid var(--border2)',borderRadius:'var(--r2)',padding:'16px',marginBottom:'16px'} },
         h('div', { style:{fontSize:'12px',fontWeight:'700',color:'var(--text3)',textTransform:'uppercase',letterSpacing:'1px',marginBottom:'10px',display:'flex',alignItems:'center',gap:'6px'} },
-          h('span',{className:'ms ms-xs',style:{color:'var(--accent)'}},'upload_file'), 'อัพโหลดหลักฐานการชำระเงิน (สลีป) *'
+          h('span',{className:'ms ms-xs',style:{color:'var(--accent)'}},'upload_file'), 'อัพโหลดหลักฐานการชำระเงิน (Silp) *'
         ),
         // Preview + drop zone
         slipPreview
@@ -4668,7 +4668,7 @@ function PaymentPopup({ onClose, onUseFree, planInfo, devSettings, currentUser, 
               onMouseLeave: e => { e.currentTarget.style.borderColor='var(--border2)'; e.currentTarget.style.background='var(--bg4)'; }
             },
               h('span',{className:'ms',style:{fontSize:'36px',color:'var(--text3)'}},'add_photo_alternate'),
-              h('span',{style:{fontSize:'13px',fontWeight:'600'}},'คลิกเพื่อเลือกไฟล์รูปสลีป'),
+              h('span',{style:{fontSize:'13px',fontWeight:'600'}},'คลิกเพื่อเลือกไฟล์รูป Silp'),
               h('span',{style:{fontSize:'11px',color:'var(--text3)'}},'รองรับ JPG, PNG ขนาดไม่เกิน 5MB'),
               h('input', {
                 type:'file', accept:'image/*',
@@ -4699,9 +4699,9 @@ function PaymentPopup({ onClose, onUseFree, planInfo, devSettings, currentUser, 
       },
         submitting
           ? h(React.Fragment, null, h('span',{className:'ms ms-xs',style:{animation:'spin 1s linear infinite'}},'sync'), ' กำลังส่ง...')
-          : h(React.Fragment, null, h('span',{className:'ms ms-xs'},'send'), ' ส่งสลีปให้ Admin')
+          : h(React.Fragment, null, h('span',{className:'ms ms-xs'},'send'), ' ส่ง Silp ให้ Admin')
       ),
-      !slipFile && h('p',{style:{fontSize:'11px',color:'var(--text3)',marginTop:'6px',marginBottom:0,textAlign:'center'}},'กรุณาเลือกไฟล์รูปสลีปก่อนส่ง')
+      !slipFile && h('p',{style:{fontSize:'11px',color:'var(--text3)',marginTop:'6px',marginBottom:0,textAlign:'center'}},'กรุณาเลือกไฟล์รูป Silp ก่อนส่ง')
     );
 
   return h('div', { className:'modal-overlay', onClick: onClose },
@@ -5517,7 +5517,7 @@ function NotificationBell({ pendingMembers, currentTeam, isAdmin, navigate, setP
                     h('div', { style:{flex:1,minWidth:0} },
                       h('div', { style:{fontSize:'13px',fontWeight:'700',color:'var(--amber)',display:'flex',alignItems:'center',gap:'6px'} },
                         h('span',{className:'ms ms-xs',style:{color:'var(--amber)'}},'payments'),
-                        'มีสลีปชำระเงินใหม่',
+                        'มี Silp ชำระเงินใหม่',
                         h('span',{style:{fontSize:'10px',background:'var(--amber)',color:'#fff',padding:'1px 5px',borderRadius:'3px',fontWeight:'700'}}, slipCount)
                       ),
                       h('div', { style:{fontSize:'11px',color:'var(--text2)',marginTop:'2px'} }, 'คลิกเพื่อไปที่ Dev Dashboard ตรวจสอบ')

@@ -4412,8 +4412,11 @@ function InviteWaitingPage({ teamName, teamId, currentUser, pendingMembers, setP
 // ─── [v25] PAYMENT POPUP ─────────────────────────────────────────────────────
 // แสดงเมื่อ: (1) Free Plan User เข้า System Settings (2) Unlimited User กด Upgrade
 // ตัวเลือก: 1.โอนธนาคาร(dim) 2.บัตรเครดิต(dim) 3.ใช้ Free Plan
-function PaymentPopup({ onClose, onUseFree, planInfo, devSettings }) {
+function PaymentPopup({ onClose, onUseFree, planInfo, devSettings, currentUser, currentTeam, showToast }) {
   const [step, setStep] = React.useState('select'); // 'select' | 'bank'
+  const [slipFile, setSlipFile] = React.useState(null);       // { name, base64, type }
+  const [slipPreview, setSlipPreview] = React.useState(null); // data URL for img preview
+  const [submitting, setSubmitting] = React.useState(false);
 
   const price           = devSettings?.unlimitedPrice || '—';
   const bankName        = devSettings?.bankName || '';

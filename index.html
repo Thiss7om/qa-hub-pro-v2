@@ -2635,7 +2635,9 @@ function App() {
     // [v24] Plan info
     currentPlan, isFreePlan, isUnlimitedPlan,
     // [v25] allow child components to refresh global plan state
-    setTeamPlanData };
+    setTeamPlanData,
+    // [v25-FIX] allow child components to clear trial banner after token save
+    setTrialDaysLeft };
 
   // LOADING SCREEN
   if (loading || !tokenReady) {
@@ -9807,7 +9809,7 @@ h('button',{className:'btn-icon',title:'คัดลอก Link',style:{padding:
 }
 
 // ─── TEAM SETTINGS PAGE ───────────────────────────────────────────────────────
-function TeamSettingsPage({ currentTeam, currentUser, setTeams, members, setMembers, setMembersState, users, isAdmin, showToast, addLog, pendingMembers, setPendingMembers, pendingMemberOpsRef, navigate, setCurrentTeam, setPage, navCtx, setTeamPlanData }) {
+function TeamSettingsPage({ currentTeam, currentUser, setTeams, members, setMembers, setMembersState, users, isAdmin, showToast, addLog, pendingMembers, setPendingMembers, pendingMemberOpsRef, navigate, setCurrentTeam, setPage, navCtx, setTeamPlanData, setTrialDaysLeft }) {
   const [tab, setTab] = useState(() => (navCtx?.tab && ['members','pending','permissions','invite','system'].includes(navCtx.tab)) ? navCtx.tab : 'members');
   const teamMembers = members.filter(m=>m.teamId===currentTeam.id);
   const roles = ['admin','function','edit','view'];
@@ -9947,12 +9949,12 @@ function TeamSettingsPage({ currentTeam, currentUser, setTeams, members, setMemb
     ),
 
     tab==='pending'&&isAdmin&&h(PendingApprovalTab,{pendingMembers,currentTeam,users,approvePending,rejectPending}),
-    tab==='system'&&isAdmin&&h(SystemSettingsTab,{currentUser,currentTeam,showToast,setTeamPlanData})
+    tab==='system'&&isAdmin&&h(SystemSettingsTab,{currentUser,currentTeam,showToast,setTeamPlanData,setTrialDaysLeft})
   );
 }
 
 // ─── [v23] SYSTEM SETTINGS TAB (Admin only) ─────────────────────────────────
-function SystemSettingsTab({ currentUser, currentTeam, showToast, setTeamPlanData }) {
+function SystemSettingsTab({ currentUser, currentTeam, showToast, setTeamPlanData, setTrialDaysLeft }) {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lockedUsers, setLockedUsers] = useState([]);
@@ -10085,6 +10087,8 @@ function SystemSettingsTab({ currentUser, currentTeam, showToast, setTeamPlanDat
         setPlanInfo(newPlanInfo);
         // [v25] อัปเดต global plan state → แถบเหลือง Free Plan หายทันที
         if (setTeamPlanData) setTeamPlanData(newPlanInfo);
+        // [v25-FIX] ล้าง trial banner ทันที เมื่อ Upgrade เป็น Unlimited สำเร็จ
+        if (setTrialDaysLeft) setTrialDaysLeft(null);
       }
     } catch(e) { showToast('บันทึก Token ล้มเหลว: ' + e.message, 'error'); }
     setTokenSaving(false);

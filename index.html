@@ -2366,19 +2366,22 @@ function App() {
   // [v24] Super Admin auto Unlimited Plan on login — no need to upgrade
   const [teamPlanData, setTeamPlanData] = useState(null);
   useEffect(() => {
-    if (!currentTeam || !currentUser) { setTeamPlanData(null); return; }
+    if (!currentUser) { setTeamPlanData(null); return; }
     if (isSuperAdminUser) {
-      // Super Admin gets unlimited plan automatically
       setTeamPlanData({ plan: 'unlimited', status: 'active' });
       return;
     }
+    // [FIX-UNLIMITED-TEAMSELECT] ถ้า currentTeam = null (อยู่หน้า TeamSelectPage)
+    // ให้ลองดึง plan จาก myTeams[0] เพื่อให้ isUnlimitedPlan ถูกต้องตั้งแต่ต้น
+    const teamIdToCheck = currentTeam?.id || (myTeams.length > 0 ? myTeams[0].id : null);
+    if (!teamIdToCheck) { setTeamPlanData(null); return; }
     (async () => {
       try {
-        const data = await api.getMyPlan(currentTeam.id);
+        const data = await api.getMyPlan(teamIdToCheck);
         setTeamPlanData(data || { plan: 'free', status: 'active' });
       } catch(e) { setTeamPlanData({ plan: 'free', status: 'active' }); }
     })();
-  }, [currentTeam?.id, isSuperAdminUser]); // eslint-disable-line
+  }, [currentTeam?.id, isSuperAdminUser, myTeams.length]); // eslint-disable-line
 
   // Derived plan info
   const currentPlan = isSuperAdminUser ? 'unlimited' : (teamPlanData?.plan || 'free');

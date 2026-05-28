@@ -14,12 +14,14 @@
            frame-src https://accounts.google.com https://login.microsoftonline.com;
            object-src 'none';
            base-uri 'self';">
-<title>QAHUBs — Test Management v27.1</title>
-<!-- QAHUBs v27.1 |
-     [v27.1-BELL-DATA] แก้กระดิ่งแจ้งเตือนทุกส่วนไม่แสดงข้อมูล:
-                       • Pending join requests: แสดงชื่อ + email ผู้ขอ (lookup จาก users)
-                       • Realtime changes: เพิ่ม fallback text เมื่อ name ว่างเปล่า
-                       • ส่ง users prop เข้า UnifiedNotificationBell
+<title>QAHUBs — Test Management v27.2</title>
+<!-- QAHUBs v27.2 |
+     [v27.2-BELL-FIX] แก้กระดิ่งแจ้งเตือน:
+                       • แก้ bug: clearUserNotifs ถูกเรียกตอนเปิด → list ว่างเสมอ
+                         ย้ายไป clear ตอนปิดแทน (click ซ้ำ / click นอก)
+                       • Toast success/info เข้ากระดิ่งแทน popup ล่างขวา
+                       • Error/Warning ยังเป็น popup เพราะต้องเห็นทันที
+                       • รองรับ info type ใน bell render
      [v27-UNIFIED-BELL] รวมกระดิ่งแจ้งเตือนเป็นกระดิ่งเดียว (UnifiedNotificationBell):
                         • Slip payment แจ้งเตือนใน bell (Super Admin)
                         • Pending join requests แสดงข้อมูลใน bell → navigate ไป Team Settings Pending
@@ -2299,7 +2301,15 @@ function App() {
   };
   const setCurrentTeam = (t) => { setCurrentTeamState(t); setSession('qah_session_team', t); };
 
-  const showToast = (msg, type='success', duration=3000) => setToasts(p => [...p.slice(-4), { msg, type, duration, id: uid() }]);
+  const showToast = (msg, type='success', duration=3000) => {
+    if (type === 'error' || type === 'warning') {
+      // Error และ Warning ยังแสดงเป็น popup (ต้องเห็นทันที)
+      setToasts(p => [...p.slice(-4), { msg, type, duration, id: uid() }]);
+    } else {
+      // Success / Info เข้ากระดิ่งแจ้งเตือนแทน
+      setUserNotifs(p => [...p.slice(-19), { type: 'info', notifType: type, name: msg, action: 'info', from: null, to: null, time: new Date().toLocaleTimeString('th-TH') }]);
+    }
+  };
 
   const addLog = (action, detail, userId) => {
     const entry = { id: uid(), userId: userId||currentUser?.id, userName: users.find(u=>u.id===(userId||currentUser?.id))?.name||'?', teamId: currentTeam?.id||null, action, detail, at: now() };
@@ -5477,8 +5487,8 @@ function UnifiedNotificationBell({ pendingMembers, currentTeam, isAdmin,
       const rect = btnRef.current.getBoundingClientRect();
       setDropPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
     }
-    // เมื่อเปิด: clear update notifications
-    if (!open) { clearUserNotifs && clearUserNotifs(); }
+    // เมื่อปิด: ถึงค่อย clear update notifications (อย่า clear ตอนเปิด — ไม่งั้นจะว่างทันที)
+    if (open) { clearUserNotifs && clearUserNotifs(); }
     setOpen(o => !o);
   };
 
@@ -5495,10 +5505,10 @@ function UnifiedNotificationBell({ pendingMembers, currentTeam, isAdmin,
   };
 
   // helpers สำหรับ update notifications
-  const getTypeIcon  = t => ({ defect:'bug_report', task:'assignment', tc:'science', project:'folder' }[t]||'notifications');
-  const getTypeColor = t => ({ defect:'var(--red)', task:'var(--purple)', tc:'var(--cyan)', project:'var(--amber)' }[t]||'var(--accent)');
-  const getTypeLabel = t => ({ defect:'Defect', task:'Task', tc:'Test Case', project:'Project' }[t]||t);
-  const getActionLabel = (action) => action === 'new' ? 'สร้างใหม่' : 'เปลี่ยนสถานะ';
+  const getTypeIcon  = t => ({ defect:'bug_report', task:'assignment', tc:'science', project:'folder', info:'info' }[t]||'notifications');
+  const getTypeColor = t => ({ defect:'var(--red)', task:'var(--purple)', tc:'var(--cyan)', project:'var(--amber)', info:'var(--accent)' }[t]||'var(--accent)');
+  const getTypeLabel = t => ({ defect:'Defect', task:'Task', tc:'Test Case', project:'Project', info:'ระบบ' }[t]||t);
+  const getActionLabel = (action) => action === 'new' ? 'สร้างใหม่' : action === 'info' ? '' : 'เปลี่ยนสถานะ';
 
   const isEmpty = count === 0;
 
@@ -5514,7 +5524,7 @@ function UnifiedNotificationBell({ pendingMembers, currentTeam, isAdmin,
     ),
     open && ReactDOM.createPortal(
       h(React.Fragment, null,
-        h('div', { style:{position:'fixed',inset:0,zIndex:9999}, onClick:()=>setOpen(false) }),
+        h('div', { style:{position:'fixed',inset:0,zIndex:9999}, onClick:()=>{ clearUserNotifs && clearUserNotifs(); setOpen(false); } }),
         h('div', { className:'notif-dropdown', style:{
           top: dropPos.top+'px', right: dropPos.right+'px', bottom:'auto', left:'auto',
           width:'340px', maxWidth:'calc(100vw - 20px)', maxHeight:'520px', overflowY:'auto'
@@ -5607,23 +5617,26 @@ function UnifiedNotificationBell({ pendingMembers, currentTeam, isAdmin,
                   ),
                   [...(userNotifs||[])].reverse().map((n, i) => {
                     const displayName = n.name && n.name.trim() ? n.name : `(${getTypeLabel(n.type)} ไม่มีชื่อ)`;
+                    const isInfoType = n.action === 'info';
                     return h('div', { key:i, className:'notif-item', style:{cursor:'default'} },
                       h('div', { style:{display:'flex',alignItems:'flex-start',gap:'10px'} },
                         h('div', { style:{width:'30px',height:'30px',borderRadius:'7px',flexShrink:0,background:getTypeColor(n.type)+'1a',display:'flex',alignItems:'center',justifyContent:'center'} },
                           h('span',{className:'ms ms-xs',style:{color:getTypeColor(n.type)}},getTypeIcon(n.type))
                         ),
                         h('div', { style:{flex:1,minWidth:0} },
-                          h('div', { style:{fontSize:'12px',fontWeight:'600',color:'var(--text)',marginBottom:'2px',display:'flex',alignItems:'center',gap:'5px',flexWrap:'wrap'} },
-                            h('span',{style:{fontSize:'10px',padding:'1px 5px',borderRadius:'3px',background:getTypeColor(n.type)+'22',color:getTypeColor(n.type),fontWeight:'700'}}, getTypeLabel(n.type)),
-                            h('span',{style:{fontSize:'10px',color:'var(--text3)'}}, getActionLabel(n.action)),
-                            h('span',{style:{maxWidth:'140px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}, displayName)
-                          ),
-                          n.from && n.to && h('div', { style:{fontSize:'11px',color:'var(--text2)',marginBottom:'2px',display:'flex',alignItems:'center',gap:'4px'} },
+                          isInfoType
+                            ? h('div', { style:{fontSize:'12px',color:'var(--text)',lineHeight:'1.5'} }, displayName)
+                            : h('div', { style:{fontSize:'12px',fontWeight:'600',color:'var(--text)',marginBottom:'2px',display:'flex',alignItems:'center',gap:'5px',flexWrap:'wrap'} },
+                                h('span',{style:{fontSize:'10px',padding:'1px 5px',borderRadius:'3px',background:getTypeColor(n.type)+'22',color:getTypeColor(n.type),fontWeight:'700'}}, getTypeLabel(n.type)),
+                                h('span',{style:{fontSize:'10px',color:'var(--text3)'}}, getActionLabel(n.action)),
+                                h('span',{style:{maxWidth:'140px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}, displayName)
+                              ),
+                          !isInfoType && n.from && n.to && h('div', { style:{fontSize:'11px',color:'var(--text2)',marginBottom:'2px',display:'flex',alignItems:'center',gap:'4px'} },
                             h('span',{style:{color:'var(--text3)',textDecoration:'line-through',fontSize:'10px'}},n.from),
                             h('span',{className:'ms ms-xs',style:{fontSize:'10px',color:'var(--text3)'}},'arrow_forward'),
                             h('span',{style:{color:n.to==='Passed'?'var(--green)':n.to==='Failed'?'var(--red)':'var(--accent)',fontSize:'10px',fontWeight:'600'}},n.to)
                           ),
-                          h('div', { style:{fontSize:'10px',color:'var(--text3)',fontFamily:'var(--mono)'} }, n.time || '')
+                          h('div', { style:{fontSize:'10px',color:'var(--text3)',fontFamily:'var(--mono)',marginTop:'2px'} }, n.time || '')
                         )
                       )
                     );

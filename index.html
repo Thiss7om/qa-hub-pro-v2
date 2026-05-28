@@ -21,6 +21,10 @@
                      (เดิม setPage ทันที → หน้าใหม่ render ด้วย data เก่า → กระพริบ)
                    • ขณะ fetch แสดง GlobalLoadingOverlay (overlay สีเข้มกึ่งโปร่งใส)
                    • เมื่อ fetch เสร็จหรือ error → setPage + ซ่อน overlay พร้อมกัน
+     [v28-PLAN-LOADING-FIX] แก้ Free Plan banner กระพริบเมื่อสร้างทีมใหม่โดย Unlimited User:
+                   • เพิ่ม planFetching state — ติดตามว่ากำลัง fetch plan อยู่ไหม
+                   • ระหว่าง fetch ไม่ reset teamPlanData เป็น null → ใช้ค่าเดิม (paid/unlimited) ต่อ
+                   • banner condition เพิ่ม !planFetching → ไม่แสดงระหว่างโหลด
      [v28-SUPER-ADMIN-SECURITY] ย้าย Login Security / Session Timeout / Google Sheets
                                  จาก Admin (System Settings) → Super Admin (Dev Dashboard)
                                  • ปุ่ม Google Sheets บน Topbar: isAdmin → isSuperAdminUser
@@ -2423,6 +2427,8 @@ function App() {
 
   // [v24] Super Admin auto Unlimited Plan on login — no need to upgrade
   const [teamPlanData, setTeamPlanData] = useState(null);
+  // [v28-PLAN-LOADING] ติดตามว่ากำลัง fetch plan อยู่ไหม → ป้องกัน banner กระพริบ
+  const [planFetching, setPlanFetching] = useState(false);
   useEffect(() => {
     if (!currentUser) { setTeamPlanData(null); return; }
     if (isSuperAdminUser) {
@@ -2433,11 +2439,15 @@ function App() {
     // ให้ลองดึง plan จาก myTeams[0] เพื่อให้ isUnlimitedPlan ถูกต้องตั้งแต่ต้น
     const teamIdToCheck = currentTeam?.id || (myTeams.length > 0 ? myTeams[0].id : null);
     if (!teamIdToCheck) { setTeamPlanData(null); return; }
+    // [v28-PLAN-LOADING] ทำ fetch โดยไม่ reset teamPlanData เป็น null ก่อน
+    // เพื่อป้องกัน banner กระพริบระหว่างโหลด — ค่าเดิมจะอยู่จนกว่า fetch จะเสร็จ
+    setPlanFetching(true);
     (async () => {
       try {
         const data = await api.getMyPlan(teamIdToCheck);
         setTeamPlanData(data || { plan: 'free', status: 'active' });
       } catch(e) { setTeamPlanData({ plan: 'free', status: 'active' }); }
+      finally { setPlanFetching(false); }
     })();
   }, [currentTeam?.id, isSuperAdminUser, myTeams.length]); // eslint-disable-line
 
@@ -2787,7 +2797,8 @@ function App() {
       h(Topbar, { ...ctx, navigate, sidebarOpen, toggleSidebar }),
       // [v24] Free Plan banner — always shown when on free plan
       // [v27-BANNER-FIX] ไม่แสดง banner ถ้า teamPlanData ยังเป็น null (กำลังโหลด) หรือ isSuperAdminUser
-      currentUser && currentTeam && isFreePlan && !isSuperAdminUser && teamPlanData !== null && h(FreePlanBanner, { navigate }),
+      // [v28-PLAN-LOADING] ไม่แสดง banner ถ้า planFetching = true (กำลัง fetch plan อยู่) → ป้องกันกระพริบ
+      currentUser && currentTeam && isFreePlan && !isSuperAdminUser && teamPlanData !== null && !planFetching && h(FreePlanBanner, { navigate }),
       // [v18-PWDEXPIRY] Password warning banner (3 วัน ก่อนหมดอายุ)
       passwordWarning && h('div', { style:{background:'var(--amber-bg)',borderBottom:'1px solid var(--amber)',padding:'8px 24px',display:'flex',alignItems:'center',gap:'10px',fontSize:'13px',color:'var(--amber)',flexShrink:0} },
         h('span',{className:'ms ms-sm'},'warning'),

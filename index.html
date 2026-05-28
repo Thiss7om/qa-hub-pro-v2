@@ -10,12 +10,20 @@
            style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com https://accounts.google.com;
            font-src https://fonts.gstatic.com;
            connect-src 'self' https://script.google.com https://script.googleusercontent.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://accounts.google.com https://oauth2.googleapis.com https://login.microsoftonline.com https://graph.microsoft.com;
-           img-src 'self' data: blob: https://lh3.googleusercontent.com;
+           img-src 'self' data: blob: https://lh3.googleusercontent.com https://drive.google.com https://drive.usercontent.google.com;
            frame-src https://accounts.google.com https://login.microsoftonline.com;
            object-src 'none';
            base-uri 'self';">
-<title>QAHUBs — Test Management</title>
-<!-- QAHUBs v25 |
+<title>QAHUBs — Test Management v27</title>
+<!-- QAHUBs v27 |
+     [v27-UNIFIED-BELL] รวมกระดิ่งแจ้งเตือนเป็นกระดิ่งเดียว (UnifiedNotificationBell):
+                        • Slip payment แจ้งเตือนใน bell (Super Admin)
+                        • Pending join requests แสดงข้อมูลใน bell → navigate ไป Team Settings Pending
+                        • Realtime changes (defect/task/tc/project) แสดงใน bell
+     [v27-NO-ADMIN-BELL] ลบ NotificationBell Admin ออก — ใช้กระดิ่งเดียวแทน
+                         Pending badge ยังคงแสดงใน Team Settings tab ตามปกติ
+     [v26-SLIP-PREVIEW] Dev Dashboard: แสดง Preview รูปสลีปในตาราง Orders (column Slip)
+     [v26-FREE-NO-EMAIL] Free Plan ไม่ส่ง Email Token — ใช้งานได้ทันทีโดยไม่ต้องกรอก Token
      [v25-PAYMENT-POPUP] Payment Popup แสดงเมื่อ Free Plan เปิด System Settings และเมื่อ Unlimited กด Upgrade
                          ตัวเลือก: 1.โอนธนาคาร(dim) 2.บัตรเครดิต(dim) 3.ใช้ Free Plan/ปิด
      [v25-CLEAR-TRIAL] เคลียร์ trialEndAt หลัง Upgrade เป็น Unlimited (ทั้ง frontend และ GAS)
@@ -1228,7 +1236,7 @@ const detectionOpts = ['Positive','Negative'];
 // ─── GOOGLE SHEETS CONFIG ─────────────────────────────────────────────────────
 // ใส่ URL ของ Google Apps Script Web App ที่ Deploy แล้ว
 // [FIX VULN-06] SS_ID ถูกลบออกจาก client-side code แล้ว — อยู่ใน Code.gs เท่านั้น
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbykhmnIcZvFLrBMKaL4VXxQxqEub-okL87kN1wpGFqAP_fZhQr1g3h5HFPQGbkGd033/exec'; // ← ใส่ GAS URL ใหม่หลัง re-deploy
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzr4Cm5UVAxGDGoWoBQLyfVN75_0O8zuU2wWmbGRY_JRjcC6NxZGf_QXf5gJn9nlhPz/exec'; // ← ใส่ GAS URL ใหม่หลัง re-deploy
 
 // [v23-PLAN] Super Admin (Dev) emails — คั่นด้วย comma, ไม่มี space
 // User ที่มี email อยู่ในนี้จะ: (1) ไม่เห็น Plan modal (2) เห็น Dev Dashboard ใน sidebar
@@ -4478,8 +4486,7 @@ function PaymentPopup({ onClose, onUseFree, planInfo, devSettings, currentUser, 
         // 2. บัตรเครดิต — DIM ยังไม่พร้อม
         h('div', { style:{
           border:'1px solid var(--border)', borderRadius:'var(--r2)',
-          padding:'16px', cursor:'pointer', background:'var(--accent-bg)',
-          // padding:'16px', opacity:0.4, cursor:'not-allowed',
+          padding:'16px', opacity:0.4, cursor:'not-allowed',
           background:'var(--bg3)', pointerEvents:'none'
         }},
           h('div', { style:{display:'flex',alignItems:'center',gap:'12px'} },
@@ -4929,6 +4936,7 @@ function DevDashboardPage({ currentUser, showToast }) {
                 h('th', null, 'Admin Email'),
                 h('th', null, 'วันที่สร้าง'),
                 h('th', null, 'สถานะ'),
+                h('th', null, 'Slip'),
                 h('th', null, 'หมายเหตุ'),
                 h('th', null, 'Action')
               )),
@@ -4942,6 +4950,32 @@ function DevDashboardPage({ currentUser, showToast }) {
                   h('td', null,
                     h('span', { style:{color: statusColor[order.status]||'var(--text2)', fontWeight:'600', fontSize:'12px'} }, statusLabel[order.status]||order.status)
                   ),
+                  h('td', { style:{textAlign:'center'} }, (() => {
+                    // ดึง slip URL จาก note field (format: "SLIP:<url> @ <timestamp>")
+                    const slipUrl = (() => {
+                      const note = order.note || '';
+                      const m = note.match(/SLIP:(https?:\/\/[^\s]+)/);
+                      return m ? m[1] : null;
+                    })();
+                    if (slipUrl) {
+                      return h('a', { href: slipUrl, target:'_blank', rel:'noopener noreferrer',
+                        title: 'เปิด Slip: ' + (order.slipFileName || 'ดูสลีป'),
+                        style:{display:'inline-block'} },
+                        h('img', { src: slipUrl, alt:'slip',
+                          style:{width:'52px',height:'52px',objectFit:'cover',borderRadius:'6px',border:'2px solid var(--amber)',cursor:'pointer',background:'#fff'},
+                          onError: e => {
+                            e.target.style.display='none';
+                            e.target.nextSibling && (e.target.nextSibling.style.display='inline');
+                          }
+                        }),
+                        h('span',{style:{display:'none',fontSize:'11px',color:'var(--amber)'}},'📎 Slip')
+                      );
+                    }
+                    if (order.slipFileName) {
+                      return h('span',{style:{fontSize:'11px',color:'var(--text3)'}}, '📎 ' + order.slipFileName);
+                    }
+                    return h('span',{style:{fontSize:'11px',color:'var(--text3)',opacity:0.4}},'—');
+                  })()),
                   h('td', null, order.status === 'pending_payment'
                     ? h('input', { className:'form-input', style:{fontSize:'12px', padding:'4px 8px', width:'150px'},
                         placeholder:'หมายเหตุ (ไม่บังคับ)', value: noteMap[order.id]||'',
@@ -5379,10 +5413,20 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
   );
 }
 
-// ─── ADMIN NOTIFICATION BELL (คำขอเข้าร่วมทีม — คลิกพาไปหน้า Pending) ──────────
-function NotificationBell({ pendingMembers, currentTeam, isAdmin, navigate, setPage, newPendingIds, clearNewPending, newSlipOrderIds, clearNewSlipOrders, isSuperAdminUser }) {
+// ─── UNIFIED NOTIFICATION BELL ──────────────────────────────────────────────
+// รวมทุกการแจ้งเตือนในกระดิ่งเดียว:
+//   • Slip payment (Super Admin)
+//   • Pending join requests (navigate → Team Settings Pending)
+//   • Realtime data changes (defect/task/tc/project)
+function UnifiedNotificationBell({ pendingMembers, currentTeam, isAdmin,
+  navigate, setPage, newPendingIds, clearNewPending,
+  newSlipOrderIds, clearNewSlipOrders, isSuperAdminUser,
+  userNotifs, clearUserNotifs }) {
+
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const btnRef = useRef(null);
+  const [dropPos, setDropPos] = useState({ top: 0, right: 0 });
   const prevCountRef = useRef(0);
 
   useEffect(() => {
@@ -5391,33 +5435,32 @@ function NotificationBell({ pendingMembers, currentTeam, isAdmin, navigate, setP
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  if (!isAdmin || !currentTeam) return null;
-
-  const allPending = (pendingMembers||[]).filter(p => p.teamId===currentTeam.id && p.status==='pending');
-  const reqs = Object.values(allPending.reduce((acc,p) => {
+  // ── pending requests สำหรับทีมปัจจุบัน ──
+  const allPending = currentTeam && isAdmin
+    ? (pendingMembers||[]).filter(p => p.teamId===currentTeam.id && p.status==='pending')
+    : [];
+  const pendingReqs = Object.values(allPending.reduce((acc,p) => {
     if (!acc[p.userId] || p.requestedAt > acc[p.userId].requestedAt) acc[p.userId] = p;
     return acc;
   }, {}));
 
-  const slipCount = isSuperAdminUser ? (newSlipOrderIds ? newSlipOrderIds.size : 0) : 0;
-  const count = reqs.length + slipCount;
-  const hasNew = (newPendingIds && reqs.some(r => newPendingIds.has(r.id))) || slipCount > 0;
+  const slipCount   = isSuperAdminUser ? (newSlipOrderIds ? newSlipOrderIds.size : 0) : 0;
+  const updateCount = (userNotifs||[]).length;
+  const count = pendingReqs.length + slipCount + updateCount;
 
-  // เล่นเสียงเมื่อมี request ใหม่เข้ามา
+  // เสียงแจ้งเตือนเมื่อมี item ใหม่
   useEffect(() => {
     if (count > prevCountRef.current && prevCountRef.current >= 0) {
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         [[880, 0], [1100, 0.18]].forEach(([freq, delay]) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
+          const osc = ctx.createOscillator(); const gain = ctx.createGain();
           osc.connect(gain); gain.connect(ctx.destination);
           osc.type = 'sine'; osc.frequency.value = freq;
           gain.gain.setValueAtTime(0, ctx.currentTime + delay);
-          gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + delay + 0.02);
+          gain.gain.linearRampToValueAtTime(0.28, ctx.currentTime + delay + 0.02);
           gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.25);
-          osc.start(ctx.currentTime + delay);
-          osc.stop(ctx.currentTime + delay + 0.28);
+          osc.start(ctx.currentTime + delay); osc.stop(ctx.currentTime + delay + 0.28);
         });
         setTimeout(() => { try { ctx.close(); } catch(e) {} }, 900);
       } catch(e) {}
@@ -5425,164 +5468,41 @@ function NotificationBell({ pendingMembers, currentTeam, isAdmin, navigate, setP
     prevCountRef.current = count;
   }, [count]);
 
-  // นำทางไปหน้า Team Settings แท็บ Pending
+  const handleOpen = () => {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setDropPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+    }
+    // เมื่อเปิด: clear update notifications
+    if (!open) { clearUserNotifs && clearUserNotifs(); }
+    setOpen(o => !o);
+  };
+
   const goToPending = () => {
     setOpen(false);
     clearNewPending && clearNewPending();
     setPage('team-settings');
   };
 
-  const btnRef = useRef(null);
-  const [dropPos, setDropPos] = useState({ top: 0, right: 0 });
-
-  const handleOpen = () => {
-    if (!open && btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setDropPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
-    }
-    setOpen(o => !o);
+  const goToDevDash = () => {
+    setOpen(false);
+    clearNewSlipOrders && clearNewSlipOrders();
+    setPage('dev-dashboard');
   };
+
+  // helpers สำหรับ update notifications
+  const getTypeIcon  = t => ({ defect:'bug_report', task:'assignment', tc:'science', project:'folder' }[t]||'notifications');
+  const getTypeColor = t => ({ defect:'var(--red)', task:'var(--purple)', tc:'var(--cyan)', project:'var(--amber)' }[t]||'var(--accent)');
+  const getTypeLabel = t => ({ defect:'Defect', task:'Task', tc:'Test Case', project:'Project' }[t]||t);
+  const getActionLabel = (action) => action === 'new' ? 'สร้างใหม่' : 'เปลี่ยนสถานะ';
+
+  const isEmpty = count === 0;
 
   return h('div', { ref, style:{position:'relative'} },
     h('button', {
       ref: btnRef,
       className: `notif-btn${count > 0 ? ' has-notif' : ''}`,
-      title: count > 0 ? `${count} คำขอเข้าร่วมทีมรออนุมัติ` : 'แจ้งเตือน',
-      onClick: handleOpen
-    },
-      h('span', { className:'ms ms-sm' }, count > 0 ? 'notifications_active' : 'notifications'),
-      count > 0 && h('span', { className:'notif-badge' }, count > 9 ? '9+' : count)
-    ),
-    open && ReactDOM.createPortal(
-      h(React.Fragment, null,
-        h('div', { style:{position:'fixed',inset:0,zIndex:9999}, onClick:()=>setOpen(false) }),
-        h('div', { className:'notif-dropdown', style:{top: dropPos.top+'px', right: dropPos.right+'px', bottom:'auto', left:'auto'} },
-          h('div', { className:'notif-header' },
-            h('span', { className:'notif-title' }, h(React.Fragment, null,
-              h('span',{className:'ms ms-xs',style:{marginRight:'6px',color:'var(--accent)'}},'notifications_active'),
-              'แจ้งเตือน'
-            )),
-            count > 0 && h('span', { style:{fontSize:'11px',color:'var(--text3)'} }, count+' รายการ')
-          ),
-          reqs.length === 0
-            ? h('div', { className:'notif-empty' },
-                h('span',{className:'ms ms-lg',style:{opacity:0.3,display:'block',marginBottom:'6px'}},'notifications_off'),
-                'ไม่มีการแจ้งเตือน'
-              )
-            : h(React.Fragment, null,
-                reqs.map(req => {
-                  const isNew = newPendingIds && newPendingIds.has(req.id);
-                  return h('div', { key:req.id, className:'notif-item', onClick:goToPending,
-                    style:isNew ? {background:'var(--accent-bg)'} : {} },
-                    h('div', { style:{display:'flex',alignItems:'center',gap:'10px'} },
-                      h('div', { className:'notif-item-icon' },
-                        h('span',{className:'ms ms-sm',style:{color:'var(--accent)'}},'person_add')
-                      ),
-                      h('div', { style:{flex:1,minWidth:0} },
-                        h('div', { style:{fontSize:'13px',fontWeight:'600',marginBottom:'2px',display:'flex',alignItems:'center',gap:'6px'} },
-                          'คำขอเข้าร่วมทีม',
-                          isNew && h('span',{style:{fontSize:'10px',background:'var(--accent)',color:'#fff',padding:'1px 5px',borderRadius:'3px',fontWeight:'700'}},'ใหม่')
-                        ),
-                        h('div', { style:{fontSize:'12px',color:'var(--text2)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'} },
-                          `ทีม ${req.teamName || currentTeam.name}`
-                        ),
-                        h('div', { style:{fontSize:'11px',color:'var(--text3)',marginTop:'2px',fontFamily:'var(--mono)'} }, fmtDate(req.requestedAt))
-                      ),
-                      h('span',{className:'ms ms-xs',style:{color:'var(--text3)'}},'chevron_right')
-                    )
-                  );
-                }),
-                h('div', { style:{padding:'10px 16px',borderTop:'1px solid var(--border)'} },
-                  h('button', { className:'btn btn-sm btn-primary', style:{width:'100%',justifyContent:'center'},
-                    onClick:goToPending },
-                    h(React.Fragment,null,h('span',{className:'ms ms-xs'},'manage_accounts'),' ดูทั้งหมดและอนุมัติ')
-                  )
-                )
-              ),
-              // [v26] Slip payment notifications for Super Admin
-              isSuperAdminUser && slipCount > 0 && h(React.Fragment, null,
-                h('div', {
-                  style:{padding:'10px 16px',borderTop:'1px solid var(--border)',background:'var(--amber-bg)',cursor:'pointer',transition:'background 0.15s'},
-                  onClick: () => {
-                    setOpen(false);
-                    clearNewSlipOrders && clearNewSlipOrders();
-                    setPage('dev-dashboard');
-                  },
-                  onMouseEnter: e => { e.currentTarget.style.background='rgba(245,158,11,0.2)'; },
-                  onMouseLeave: e => { e.currentTarget.style.background='var(--amber-bg)'; }
-                },
-                  h('div', { style:{display:'flex',alignItems:'center',gap:'10px'} },
-                    h('div', { style:{width:'32px',height:'32px',borderRadius:'8px',background:'var(--amber)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0} },
-                      h('span',{className:'ms ms-sm',style:{color:'#fff'}},'receipt_long')
-                    ),
-                    h('div', { style:{flex:1,minWidth:0} },
-                      h('div', { style:{fontSize:'13px',fontWeight:'700',color:'var(--amber)',display:'flex',alignItems:'center',gap:'6px'} },
-                        h('span',{className:'ms ms-xs',style:{color:'var(--amber)'}},'payments'),
-                        'มี Silp ชำระเงินใหม่',
-                        h('span',{style:{fontSize:'10px',background:'var(--amber)',color:'#fff',padding:'1px 5px',borderRadius:'3px',fontWeight:'700'}}, slipCount)
-                      ),
-                      h('div', { style:{fontSize:'11px',color:'var(--text2)',marginTop:'2px'} }, 'คลิกเพื่อไปที่ Dev Dashboard ตรวจสอบ')
-                    ),
-                    h('span',{className:'ms ms-xs',style:{color:'var(--amber)'}},'chevron_right')
-                  )
-                )
-              )
-        )
-      ),
-      document.getElementById('modal-root')
-    )
-  );
-}
-
-
-// ─── USER UPDATE NOTIFICATION BELL (แจ้งเตือนการอัปเดตสำหรับ User ทั่วไป) ──────
-function UserNotificationBell({ userNotifs, clearUserNotifs }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  const btnRef = useRef(null);
-  const [dropPos, setDropPos] = useState({ top: 0, right: 0 });
-
-  useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const count = (userNotifs||[]).length;
-
-  const handleOpen = () => {
-    if (!open && btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setDropPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
-      clearUserNotifs && clearUserNotifs();
-    }
-    setOpen(o => !o);
-  };
-
-  const getIcon = (type) => {
-    if (type === 'defect') return 'bug_report';
-    if (type === 'task') return 'assignment';
-    if (type === 'tc') return 'science';
-    return 'folder';
-  };
-  const getColor = (type) => {
-    if (type === 'defect') return 'var(--red)';
-    if (type === 'task') return 'var(--purple)';
-    if (type === 'tc') return 'var(--cyan)';
-    return 'var(--amber)';
-  };
-  const getLabel = (type) => {
-    if (type === 'defect') return 'Defect';
-    if (type === 'task') return 'Task';
-    if (type === 'tc') return 'Test Case';
-    return 'Project';
-  };
-
-  return h('div', { ref, style:{position:'relative'} },
-    h('button', {
-      ref: btnRef,
-      className: `notif-btn${count > 0 ? ' has-notif' : ''}`,
-      title: count > 0 ? `${count} การแจ้งเตือนใหม่` : 'แจ้งเตือน',
+      title: count > 0 ? `${count} การแจ้งเตือน` : 'แจ้งเตือน',
       onClick: handleOpen
     },
       h('span', { className:'ms ms-sm' }, count > 0 ? 'notifications_active' : 'notifications'),
@@ -5593,51 +5513,108 @@ function UserNotificationBell({ userNotifs, clearUserNotifs }) {
         h('div', { style:{position:'fixed',inset:0,zIndex:9999}, onClick:()=>setOpen(false) }),
         h('div', { className:'notif-dropdown', style:{
           top: dropPos.top+'px', right: dropPos.right+'px', bottom:'auto', left:'auto',
-          width: '320px', maxWidth: 'calc(100vw - 20px)'
+          width:'340px', maxWidth:'calc(100vw - 20px)', maxHeight:'520px', overflowY:'auto'
         } },
           h('div', { className:'notif-header' },
-            h('span', { className:'notif-title' }, h(React.Fragment, null,
+            h('span', { className:'notif-title' },
               h('span',{className:'ms ms-xs',style:{marginRight:'6px',color:'var(--accent)'}},'notifications_active'),
               'แจ้งเตือน'
-            )),
-            count > 0 && h('div', { style:{display:'flex',alignItems:'center',gap:'8px'} },
-              h('span', { style:{fontSize:'11px',color:'var(--text3)'} }, count+' รายการ'),
-              h('button', {
-                style:{fontSize:'10px',color:'var(--text3)',background:'none',border:'none',cursor:'pointer',padding:'2px 5px',borderRadius:'3px'},
+            ),
+            h('div', { style:{display:'flex',alignItems:'center',gap:'8px'} },
+              count > 0 && h('span',{style:{fontSize:'11px',color:'var(--text3)'}}, count+' รายการ'),
+              updateCount > 0 && h('button', {
+                style:{fontSize:'10px',color:'var(--text3)',background:'none',border:'none',cursor:'pointer',padding:'2px 6px',borderRadius:'3px'},
                 onClick: e => { e.stopPropagation(); clearUserNotifs && clearUserNotifs(); }
               }, 'ล้างทั้งหมด')
             )
           ),
-          (userNotifs||[]).length === 0
+
+          isEmpty
             ? h('div', { className:'notif-empty' },
                 h('span',{className:'ms ms-lg',style:{opacity:0.3,display:'block',marginBottom:'6px'}},'notifications_off'),
                 'ไม่มีการแจ้งเตือน'
               )
-            : h('div', { style:{maxHeight:'360px',overflowY:'auto'} },
-                [...(userNotifs||[])].reverse().map((n, i) =>
-                  h('div', { key:i, className:'notif-item', style:{cursor:'default',padding:'10px 16px',borderBottom:'1px solid var(--border)'} },
-                    h('div', { style:{display:'flex',alignItems:'flex-start',gap:'10px'} },
-                      h('div', {
-                        style:{
-                          width:'30px',height:'30px',borderRadius:'7px',flexShrink:0,
-                          background:getColor(n.type)+'1a',
-                          display:'flex',alignItems:'center',justifyContent:'center'
-                        }
-                      },
-                        h('span',{className:'ms ms-xs',style:{color:getColor(n.type)}},getIcon(n.type))
+            : h(React.Fragment, null,
+
+                // ── SECTION: Slip payments (Super Admin) ──
+                isSuperAdminUser && slipCount > 0 && h('div', {
+                  className:'notif-item', style:{cursor:'pointer',background:'var(--amber-bg)'},
+                  onClick: goToDevDash
+                },
+                  h('div', { style:{display:'flex',alignItems:'center',gap:'10px'} },
+                    h('div', { style:{width:'32px',height:'32px',borderRadius:'8px',background:'var(--amber)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0} },
+                      h('span',{className:'ms ms-sm',style:{color:'#fff'}},'receipt_long')
+                    ),
+                    h('div', { style:{flex:1,minWidth:0} },
+                      h('div', { style:{fontSize:'13px',fontWeight:'700',color:'var(--amber)',display:'flex',alignItems:'center',gap:'6px'} },
+                        'สลีปชำระเงินใหม่',
+                        h('span',{style:{fontSize:'10px',background:'var(--amber)',color:'#fff',padding:'1px 5px',borderRadius:'3px',fontWeight:'700'}}, slipCount)
                       ),
-                      h('div', { style:{flex:1,minWidth:0} },
-                        h('div', { style:{fontSize:'12px',fontWeight:'600',color:'var(--text)',marginBottom:'2px'} },
-                          h('span',{style:{fontSize:'10px',padding:'1px 5px',borderRadius:'3px',background:getColor(n.type)+'22',color:getColor(n.type),marginRight:'5px',fontWeight:'700'}},getLabel(n.type)),
-                          n.name
+                      h('div', { style:{fontSize:'11px',color:'var(--text2)',marginTop:'2px'} }, 'คลิกเพื่อตรวจสอบใน Dev Dashboard')
+                    ),
+                    h('span',{className:'ms ms-xs',style:{color:'var(--amber)'}},'chevron_right')
+                  )
+                ),
+
+                // ── SECTION: Pending join requests ──
+                pendingReqs.length > 0 && h(React.Fragment, null,
+                  h('div', { style:{padding:'6px 16px 4px',fontSize:'10px',fontWeight:'700',color:'var(--text3)',letterSpacing:'1px',textTransform:'uppercase',borderTop: slipCount>0?'1px solid var(--border)':'none'} },
+                    'คำขอเข้าร่วมทีม'
+                  ),
+                  pendingReqs.map(req => {
+                    const isNew = newPendingIds && newPendingIds.has(req.id);
+                    return h('div', { key:req.id, className:'notif-item', style:{cursor:'pointer', ...(isNew?{background:'var(--accent-bg)'}:{})},
+                      onClick: goToPending },
+                      h('div', { style:{display:'flex',alignItems:'center',gap:'10px'} },
+                        h('div', { style:{width:'32px',height:'32px',borderRadius:'8px',background:'var(--accent-bg)',border:'1px solid var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0} },
+                          h('span',{className:'ms ms-sm',style:{color:'var(--accent)'}},'person_add')
                         ),
-                        n.from && n.to && h('div', { style:{fontSize:'11px',color:'var(--text2)',marginBottom:'2px'} },
-                          h('span',{style:{color:'var(--text3)'}},'สถานะ: '),
-                          h('span',{style:{color:'var(--text3)',textDecoration:'line-through'}},n.from),
-                          h('span',{className:'ms ms-xs',style:{fontSize:'10px',color:'var(--text3)',margin:'0 3px'}},'arrow_forward'),
-                          h('span',{style:{color:n.to==='Passed'?'var(--green)':n.to==='Failed'?'var(--red)':'var(--accent)'}},n.to)
+                        h('div', { style:{flex:1,minWidth:0} },
+                          h('div', { style:{fontSize:'13px',fontWeight:'600',marginBottom:'2px',display:'flex',alignItems:'center',gap:'6px'} },
+                            'ขอเข้าร่วมทีม',
+                            isNew && h('span',{style:{fontSize:'10px',background:'var(--accent)',color:'#fff',padding:'1px 5px',borderRadius:'3px',fontWeight:'700'}},'ใหม่')
+                          ),
+                          h('div', { style:{fontSize:'12px',color:'var(--text2)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'} },
+                            `ทีม ${req.teamName || (currentTeam&&currentTeam.name) || ''}`
+                          ),
+                          h('div', { style:{fontSize:'11px',color:'var(--text3)',marginTop:'2px',fontFamily:'var(--mono)'} }, fmtDate(req.requestedAt))
                         ),
-                        h('div', { style:{fontSize:'10px',color:'var(--text3)',fontFamily:'var(--mono)'} }, n.time || '')
+                        h('span',{className:'ms ms-xs',style:{color:'var(--text3)'}},'chevron_right')
+                      )
+                    );
+                  }),
+                  h('div', { style:{padding:'8px 16px',borderTop:'1px solid var(--border)'} },
+                    h('button', { className:'btn btn-sm btn-primary', style:{width:'100%',justifyContent:'center'},
+                      onClick: goToPending },
+                      h('span',{className:'ms ms-xs'},'manage_accounts'), ' ดูและอนุมัติ'
+                    )
+                  )
+                ),
+
+                // ── SECTION: Realtime updates ──
+                updateCount > 0 && h(React.Fragment, null,
+                  h('div', { style:{padding:'6px 16px 4px',fontSize:'10px',fontWeight:'700',color:'var(--text3)',letterSpacing:'1px',textTransform:'uppercase',borderTop:'1px solid var(--border)'} },
+                    'การเปลี่ยนแปลงล่าสุด'
+                  ),
+                  [...(userNotifs||[])].reverse().map((n, i) =>
+                    h('div', { key:i, className:'notif-item', style:{cursor:'default'} },
+                      h('div', { style:{display:'flex',alignItems:'flex-start',gap:'10px'} },
+                        h('div', { style:{width:'30px',height:'30px',borderRadius:'7px',flexShrink:0,background:getTypeColor(n.type)+'1a',display:'flex',alignItems:'center',justifyContent:'center'} },
+                          h('span',{className:'ms ms-xs',style:{color:getTypeColor(n.type)}},getTypeIcon(n.type))
+                        ),
+                        h('div', { style:{flex:1,minWidth:0} },
+                          h('div', { style:{fontSize:'12px',fontWeight:'600',color:'var(--text)',marginBottom:'2px',display:'flex',alignItems:'center',gap:'5px',flexWrap:'wrap'} },
+                            h('span',{style:{fontSize:'10px',padding:'1px 5px',borderRadius:'3px',background:getTypeColor(n.type)+'22',color:getTypeColor(n.type),fontWeight:'700'}}, getTypeLabel(n.type)),
+                            h('span',{style:{fontSize:'10px',color:'var(--text3)'}}, getActionLabel(n.action)),
+                            h('span',{style:{maxWidth:'140px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}, n.name)
+                          ),
+                          n.from && n.to && h('div', { style:{fontSize:'11px',color:'var(--text2)',marginBottom:'2px',display:'flex',alignItems:'center',gap:'4px'} },
+                            h('span',{style:{color:'var(--text3)',textDecoration:'line-through',fontSize:'10px'}},n.from),
+                            h('span',{className:'ms ms-xs',style:{fontSize:'10px',color:'var(--text3)'}},'arrow_forward'),
+                            h('span',{style:{color:n.to==='Passed'?'var(--green)':n.to==='Failed'?'var(--red)':'var(--accent)',fontSize:'10px',fontWeight:'600'}},n.to)
+                          ),
+                          h('div', { style:{fontSize:'10px',color:'var(--text3)',fontFamily:'var(--mono)'} }, n.time || '')
+                        )
                       )
                     )
                   )
@@ -5649,7 +5626,6 @@ function UserNotificationBell({ userNotifs, clearUserNotifs }) {
     )
   );
 }
-
 
 // ─── TOPBAR ───────────────────────────────────────────────────────────────────
 function Topbar({ currentUser, setCurrentUser, users, setUsers, currentTeam, setCurrentTeam, setPage, navigate, myTeams, theme, toggleTheme, syncing, USE_GAS, refreshFromSheets, isAdmin, showToast, pendingMembers, newPendingIds, clearNewPending, newSlipOrderIds, clearNewSlipOrders, isSuperAdminUser, sidebarOpen, toggleSidebar, approvePending, rejectPending, userNotifs, clearUserNotifs }) {
@@ -5795,8 +5771,7 @@ function Topbar({ currentUser, setCurrentUser, users, setUsers, currentTeam, set
         h('span',{className:'ms ms-sm'},theme==='dark'?'light_mode':'dark_mode'),
         h('span',{style:{fontSize:'11px',fontWeight:'600',letterSpacing:'0.3px'}}, theme==='dark'?'':'')
       ),
-      isAdmin && h(NotificationBell, { pendingMembers, currentTeam, isAdmin, navigate, setPage, newPendingIds, clearNewPending, newSlipOrderIds, clearNewSlipOrders, isSuperAdminUser }),
-      currentTeam && h(UserNotificationBell, { userNotifs, clearUserNotifs }),
+      h(UnifiedNotificationBell, { pendingMembers, currentTeam, isAdmin, navigate, setPage, newPendingIds, clearNewPending, newSlipOrderIds, clearNewSlipOrders, isSuperAdminUser, userNotifs, clearUserNotifs }),
       h('div', { className: 'user-pill', style:{position:'relative'} },
         h('div', {
           style:{display:'flex',alignItems:'center',gap:'8px',cursor:'pointer'},

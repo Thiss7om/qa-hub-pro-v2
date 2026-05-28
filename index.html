@@ -14,8 +14,14 @@
            frame-src https://accounts.google.com https://login.microsoftonline.com;
            object-src 'none';
            base-uri 'self';">
-<title>QAHUBs — Test Management v27.2</title>
-<!-- QAHUBs v27.2 |
+<title>QAHUBs — Test Management v28</title>
+<!-- QAHUBs v28 |
+     [v28-SUPER-ADMIN-SECURITY] ย้าย Login Security / Session Timeout / Google Sheets
+                                 จาก Admin (System Settings) → Super Admin (Dev Dashboard)
+                                 • ปุ่ม Google Sheets บน Topbar: isAdmin → isSuperAdminUser
+                                 • Google Sheets ใน Dev Dashboard ไม่ต้องกรอกรหัสผ่าน (เปิดตรง)
+                                 • Login Security + Session Timeout ย้ายไปอยู่ใน Dev Dashboard
+                                   พร้อม badge "Super Admin Only" และ border สี
      [v27.2-BELL-FIX] แก้กระดิ่งแจ้งเตือน:
                        • แก้ bug: clearUserNotifs ถูกเรียกตอนเปิด → list ว่างเสมอ
                          ย้ายไป clear ตอนปิดแทน (click ซ้ำ / click นอก)
@@ -4844,6 +4850,48 @@ function DevDashboardPage({ currentUser, showToast }) {
   const [devSettingsLoading, setDevSettingsLoading] = useState(true);
   const [devSettingsSaving, setDevSettingsSaving] = useState(false);
 
+  // [v28] Security Settings state (moved from Admin → Super Admin)
+  const [secLoading, setSecLoading]   = useState(true);
+  const [secSaving, setSecSaving]     = useState(false);
+  const [idleMin, setIdleMin]         = useState(120);
+  const [absHours, setAbsHours]       = useState(12);
+  const [lockMin, setLockMin]         = useState(5);
+  const [maxFail, setMaxFail]         = useState(5);
+
+  const loadSecuritySettings = async () => {
+    setSecLoading(true);
+    try {
+      const res = await api.rawWrite({ action:'getSystemSettings', token:getAuthToken() });
+      if (res && res.ok && res.data) {
+        setIdleMin(res.data.idleTimeoutMinutes || 120);
+        setAbsHours(res.data.absTimeoutHours || 12);
+        setLockMin(res.data.loginLockMinutes || 5);
+        setMaxFail(res.data.loginMaxFail || 5);
+      }
+    } catch(e) {}
+    setSecLoading(false);
+  };
+
+  const saveSecuritySettings = async () => {
+    setSecSaving(true);
+    try {
+      const res = await api.rawWrite({
+        action: 'saveSystemSettings', token: getAuthToken(),
+        idleTimeoutMinutes: idleMin, absTimeoutHours: absHours,
+        loginLockMinutes: lockMin, loginMaxFail: maxFail
+      });
+      if (!res || res.ok === false) { showToast(res?.error || 'บันทึกไม่สำเร็จ', 'error'); }
+      else {
+        try {
+          localStorage.setItem('qah_idle_timeout_min',  String(idleMin));
+          localStorage.setItem('qah_abs_timeout_hours', String(absHours));
+        } catch {}
+        showToast('บันทึก Security Settings สำเร็จ');
+      }
+    } catch(e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
+    setSecSaving(false);
+  };
+
   const loadOrders = async (filterStatus) => {
     setLoading(true);
     try {
@@ -4874,7 +4922,7 @@ function DevDashboardPage({ currentUser, showToast }) {
     setDevSettingsSaving(false);
   };
 
-  useEffect(() => { loadOrders(); loadDevSettings(); }, []);
+  useEffect(() => { loadOrders(); loadDevSettings(); loadSecuritySettings(); }, []);
 
   const approve = async (orderId) => {
     setApproving(p => ({...p, [orderId]: true}));
@@ -5130,6 +5178,116 @@ function DevDashboardPage({ currentUser, showToast }) {
               )
             )
           )
+    ),
+
+    // ── [v28] Login Security ──
+    h('div', { className:'card', style:{marginTop:'24px', border:'1px solid var(--red)'} },
+      h('div', { className:'card-header' },
+        h('h3', { className:'card-title', style:{display:'flex',alignItems:'center',gap:'8px'} },
+          h('span',{className:'ms ms-sm',style:{color:'var(--red)'}},'shield'),
+          'Login Security'
+        ),
+        h('span',{style:{fontSize:'11px',background:'var(--red-bg)',border:'1px solid var(--red)',borderRadius:'var(--r)',padding:'2px 8px',color:'var(--red)',fontWeight:'700'}},'Super Admin Only')
+      ),
+      secLoading
+        ? h('div',{style:{padding:'20px',textAlign:'center',color:'var(--text3)'}},'กำลังโหลด...')
+        : h('div',{style:{padding:'16px 20px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px'}},
+            h('div',{className:'form-group'},
+              h('label',{className:'form-label'},
+                h('span',{className:'ms ms-xs',style:{marginRight:'4px'}},'lock'), 'ล็อคหลังผิดกี่ครั้ง'
+              ),
+              h('div',{style:{display:'flex',alignItems:'center',gap:'8px'}},
+                h('input',{className:'form-input',type:'number',min:3,max:20,value:maxFail,onChange:e=>setMaxFail(parseInt(e.target.value,10)||5),style:{width:'80px'}}),
+                h('span',{style:{fontSize:'12px',color:'var(--text3)'}},'ครั้ง (ค่าปัจจุบัน: '+maxFail+')')
+              )
+            ),
+            h('div',{className:'form-group'},
+              h('label',{className:'form-label'},
+                h('span',{className:'ms ms-xs',style:{marginRight:'4px'}},'timer'), 'ระยะเวลาล็อค'
+              ),
+              h('div',{style:{display:'flex',alignItems:'center',gap:'8px'}},
+                h('input',{className:'form-input',type:'number',min:1,max:60,value:lockMin,onChange:e=>setLockMin(parseInt(e.target.value,10)||5),style:{width:'80px'}}),
+                h('span',{style:{fontSize:'12px',color:'var(--text3)'}},'นาที (ค่าปัจจุบัน: '+lockMin+' นาที)')
+              )
+            )
+          )
+    ),
+
+    // ── [v28] Session Timeout ──
+    h('div', { className:'card', style:{marginTop:'24px', border:'1px solid var(--amber)'} },
+      h('div', { className:'card-header' },
+        h('h3', { className:'card-title', style:{display:'flex',alignItems:'center',gap:'8px'} },
+          h('span',{className:'ms ms-sm',style:{color:'var(--amber)'}},'schedule'),
+          'Session Timeout'
+        ),
+        h('span',{style:{fontSize:'11px',background:'var(--amber-bg)',border:'1px solid var(--amber)',borderRadius:'var(--r)',padding:'2px 8px',color:'var(--amber)',fontWeight:'700'}},'Super Admin Only')
+      ),
+      secLoading
+        ? h('div',{style:{padding:'20px',textAlign:'center',color:'var(--text3)'}},'กำลังโหลด...')
+        : h(React.Fragment, null,
+            h('div',{style:{padding:'16px 20px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px'}},
+              h('div',{className:'form-group'},
+                h('label',{className:'form-label'},
+                  h('span',{className:'ms ms-xs',style:{marginRight:'4px'}},'bedtime'), 'Idle Timeout (ไม่มี Activity)'
+                ),
+                h('div',{style:{display:'flex',alignItems:'center',gap:'8px'}},
+                  h('input',{className:'form-input',type:'number',min:5,max:480,value:idleMin,onChange:e=>setIdleMin(parseInt(e.target.value,10)||120),style:{width:'80px'}}),
+                  h('span',{style:{fontSize:'12px',color:'var(--text3)'}},`นาที = ${(idleMin/60).toFixed(1)} ชั่วโมง`)
+                )
+              ),
+              h('div',{className:'form-group'},
+                h('label',{className:'form-label'},
+                  h('span',{className:'ms ms-xs',style:{marginRight:'4px'}},'update'), 'Absolute Session Timeout'
+                ),
+                h('div',{style:{display:'flex',alignItems:'center',gap:'8px'}},
+                  h('input',{className:'form-input',type:'number',min:1,max:72,value:absHours,onChange:e=>setAbsHours(parseInt(e.target.value,10)||12),style:{width:'80px'}}),
+                  h('span',{style:{fontSize:'12px',color:'var(--text3)'}},`ชั่วโมง = ${absHours} ชม.`)
+                )
+              )
+            ),
+            h('div',{style:{padding:'0 20px 12px'}},
+              h('div',{style:{background:'var(--amber-bg)',border:'1px solid var(--amber)',borderRadius:'var(--r)',padding:'8px 12px',fontSize:'12px',color:'var(--text2)',display:'flex',alignItems:'center',gap:'6px'}},
+                h('span',{className:'ms ms-xs',style:{color:'var(--amber)'}},'info'),
+                'Idle timeout: logout หลังไม่มี activity ตามเวลาที่กำหนด  |  Absolute: บังคับ logout ทุกๆ N ชั่วโมงไม่ว่ากรณีใด'
+              )
+            ),
+            h('div',{style:{padding:'0 20px 20px',display:'flex',justifyContent:'flex-end'}},
+              h('button',{className:'btn btn-primary',onClick:saveSecuritySettings,disabled:secSaving,style:{display:'flex',alignItems:'center',gap:'6px'}},
+                h('span',{className:'ms ms-xs'},secSaving?'sync':'save'), secSaving?'กำลังบันทึก...':'บันทึก Security Settings'
+              )
+            )
+          )
+    ),
+
+    // ── [v28] Google Sheets Access ──
+    h('div', { className:'card', style:{marginTop:'24px', border:'1px solid var(--cyan)'} },
+      h('div', { className:'card-header' },
+        h('h3', { className:'card-title', style:{display:'flex',alignItems:'center',gap:'8px'} },
+          h('span',{className:'ms ms-sm',style:{color:'var(--cyan)'}},'table_chart'),
+          'Google Sheets Access'
+        ),
+        h('span',{style:{fontSize:'11px',background:'var(--cyan-bg)',border:'1px solid var(--cyan)',borderRadius:'var(--r)',padding:'2px 8px',color:'var(--cyan)',fontWeight:'700'}},'Super Admin Only')
+      ),
+      h('div',{style:{padding:'16px 20px'}},
+        h('div',{style:{fontSize:'13px',color:'var(--text2)',marginBottom:'14px',lineHeight:'1.7'}},
+          h('span',{className:'ms ms-xs',style:{color:'var(--cyan)',marginRight:'6px'}},'info'),
+          'เปิด Google Sheets โดยตรง — ใช้สำหรับตรวจสอบหรือแก้ไขข้อมูลดิบในกรณีฉุกเฉิน'
+        ),
+        h('button',{
+          className:'btn',
+          style:{display:'inline-flex',alignItems:'center',gap:'6px',borderColor:'var(--cyan)',color:'var(--cyan)',background:'var(--cyan-bg)'},
+          onClick:() => {
+            let ssId = '';
+            try { ssId = sessionStorage.getItem('qah_ssid') || localStorage.getItem('qah_ssid') || ''; } catch {}
+            const sheetUrl = ssId
+              ? `https://docs.google.com/spreadsheets/d/${ssId}/edit`
+              : 'https://docs.google.com/spreadsheets';
+            window.open(sheetUrl, '_blank');
+          }
+        },
+          h('span',{className:'ms ms-sm'},'open_in_new'), 'เปิด Google Sheets'
+        )
+      )
     )
   );
 }
@@ -5727,10 +5885,10 @@ function Topbar({ currentUser, setCurrentUser, users, setUsers, currentTeam, set
         h('span', null, h('span',{className:'ms ms-sm'},syncing?'sync':'refresh')),
         syncing ? 'Syncing...' : ''
       ),
-      isAdmin && h('div', { style:{position:'relative'} },
+      isSuperAdminUser && h('div', { style:{position:'relative'} },
         h('button', {
           className: 'btn btn-sm',
-          title: 'เปิด Google Sheets (Admin only)',
+          title: 'เปิด Google Sheets (Super Admin only)',
           onClick: () => { setShowSheetPass(v=>!v); setSheetPass(''); setSheetPassErr(''); },
           style: { gap: '5px', fontSize: '12px', padding: '5px 10px',
             background: showSheetPass ? 'var(--accent-bg)' : 'var(--bg3)',
@@ -9954,16 +10112,9 @@ function TeamSettingsPage({ currentTeam, currentUser, setTeams, members, setMemb
 
 // ─── [v23] SYSTEM SETTINGS TAB (Admin only) ─────────────────────────────────
 function SystemSettingsTab({ currentUser, currentTeam, showToast, setTeamPlanData, setTrialDaysLeft }) {
-  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lockedUsers, setLockedUsers] = useState([]);
   const [unlocking, setUnlocking] = useState({});
-
-  // Session timeout settings
-  const [idleMin, setIdleMin]   = useState(120);
-  const [absHours, setAbsHours] = useState(12);
-  const [lockMin, setLockMin]   = useState(5);
-  const [maxFail, setMaxFail]   = useState(5);
 
   // [v23-PLAN] Plan/Token state
   const [planInfo, setPlanInfo]       = useState(null);
@@ -9974,17 +10125,8 @@ function SystemSettingsTab({ currentUser, currentTeam, showToast, setTeamPlanDat
 
   useEffect(() => {
     setLoading(true);
-    api.rawWrite({ action:'getSystemSettings', token:getAuthToken() })
-      .then(res => {
-        if (res && res.ok && res.data) {
-          setIdleMin(res.data.idleTimeoutMinutes || 120);
-          setAbsHours(res.data.absTimeoutHours || 12);
-          setLockMin(res.data.loginLockMinutes || 5);
-          setMaxFail(res.data.loginMaxFail || 5);
-        }
-      }).catch(()=>{})
-      .finally(() => setLoading(false));
     loadLockedUsers();
+    setLoading(false);
     // [v23-PLAN] โหลด Plan info
     if (currentTeam) {
       setPlanLoading(true);
@@ -10008,26 +10150,6 @@ function SystemSettingsTab({ currentUser, currentTeam, showToast, setTeamPlanDat
       .then(res => {
         if (res && res.ok) setLockedUsers(res.data && res.data.locked ? res.data.locked : []);
       }).catch(()=>{});
-  };
-
-  const saveSettings = async () => {
-    setSaving(true);
-    try {
-      const res = await api.rawWrite({
-        action: 'saveSystemSettings', token: getAuthToken(),
-        idleTimeoutMinutes: idleMin, absTimeoutHours: absHours,
-        loginLockMinutes: lockMin, loginMaxFail: maxFail
-      });
-      if (!res || res.ok === false) { showToast(res?.error || 'บันทึกไม่สำเร็จ', 'error'); }
-      else {
-        try {
-          localStorage.setItem('qah_idle_timeout_min',  String(idleMin));
-          localStorage.setItem('qah_abs_timeout_hours', String(absHours));
-        } catch {}
-        showToast('บันทึก System Settings สำเร็จ');
-      }
-    } catch(e) { showToast('เกิดข้อผิดพลาด: ' + e.message, 'error'); }
-    setSaving(false);
   };
 
   const unlockUser = async (email) => {
@@ -10244,77 +10366,6 @@ function SystemSettingsTab({ currentUser, currentTeam, showToast, setTeamPlanDat
               'Free Plan: ทีม 1 | Project 1 | Task 2/Project | Test Case 30/Task | Defect 10'
             )
           )
-    ),
-
-    // ── Login Security ──
-    h('div',{className:'card',style:{marginBottom:'16px'}},
-      h('div',{className:'card-header'},
-        h('h3',{className:'card-title',style:{display:'flex',alignItems:'center',gap:'8px'}},
-          h('span',{className:'ms ms-sm',style:{color:'var(--red)'}},'shield'),
-          'Login Security'
-        )
-      ),
-      h('div',{style:{padding:'16px 20px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px'}},
-        h('div',{className:'form-group'},
-          h('label',{className:'form-label'},
-            h('span',{className:'ms ms-xs',style:{marginRight:'4px'}},'lock'), 'ล็อคหลังผิดกี่ครั้ง'
-          ),
-          h('div',{style:{display:'flex',alignItems:'center',gap:'8px'}},
-            h('input',{className:'form-input',type:'number',min:3,max:20,value:maxFail,onChange:e=>setMaxFail(parseInt(e.target.value,10)||5),style:{width:'80px'}}),
-            h('span',{style:{fontSize:'12px',color:'var(--text3)'}},'ครั้ง (ค่าปัจจุบัน: '+maxFail+')')
-          )
-        ),
-        h('div',{className:'form-group'},
-          h('label',{className:'form-label'},
-            h('span',{className:'ms ms-xs',style:{marginRight:'4px'}},'timer'), 'ระยะเวลาล็อค'
-          ),
-          h('div',{style:{display:'flex',alignItems:'center',gap:'8px'}},
-            h('input',{className:'form-input',type:'number',min:1,max:60,value:lockMin,onChange:e=>setLockMin(parseInt(e.target.value,10)||5),style:{width:'80px'}}),
-            h('span',{style:{fontSize:'12px',color:'var(--text3)'}},'นาที (ค่าปัจจุบัน: '+lockMin+' นาที)')
-          )
-        )
-      )
-    ),
-
-    // ── Session Timeout ──
-    h('div',{className:'card',style:{marginBottom:'16px'}},
-      h('div',{className:'card-header'},
-        h('h3',{className:'card-title',style:{display:'flex',alignItems:'center',gap:'8px'}},
-          h('span',{className:'ms ms-sm',style:{color:'var(--amber)'}},'schedule'),
-          'Session Timeout'
-        )
-      ),
-      h('div',{style:{padding:'16px 20px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px'}},
-        h('div',{className:'form-group'},
-          h('label',{className:'form-label'},
-            h('span',{className:'ms ms-xs',style:{marginRight:'4px'}},'bedtime'), 'Idle Timeout (ไม่มี Activity)'
-          ),
-          h('div',{style:{display:'flex',alignItems:'center',gap:'8px'}},
-            h('input',{className:'form-input',type:'number',min:5,max:480,value:idleMin,onChange:e=>setIdleMin(parseInt(e.target.value,10)||120),style:{width:'80px'}}),
-            h('span',{style:{fontSize:'12px',color:'var(--text3)'}},`นาที = ${(idleMin/60).toFixed(1)} ชั่วโมง`)
-          )
-        ),
-        h('div',{className:'form-group'},
-          h('label',{className:'form-label'},
-            h('span',{className:'ms ms-xs',style:{marginRight:'4px'}},'update'), 'Absolute Session Timeout'
-          ),
-          h('div',{style:{display:'flex',alignItems:'center',gap:'8px'}},
-            h('input',{className:'form-input',type:'number',min:1,max:72,value:absHours,onChange:e=>setAbsHours(parseInt(e.target.value,10)||12),style:{width:'80px'}}),
-            h('span',{style:{fontSize:'12px',color:'var(--text3)'}},`ชั่วโมง = ${absHours} ชม.`)
-          )
-        )
-      ),
-      h('div',{style:{padding:'0 20px 16px'}},
-        h('div',{style:{background:'var(--amber-bg)',border:'1px solid var(--amber)',borderRadius:'var(--r)',padding:'8px 12px',fontSize:'12px',color:'var(--text2)',display:'flex',alignItems:'center',gap:'6px'}},
-          h('span',{className:'ms ms-xs',style:{color:'var(--amber)'}},'info'),
-          'Idle timeout: logout หลังไม่มี activity ตามเวลาที่กำหนด  |  Absolute: บังคับ logout ทุกๆ N ชั่วโมงไม่ว่ากรณีใด'
-        )
-      ),
-      h('div',{style:{padding:'0 20px 20px',display:'flex',justifyContent:'flex-end'}},
-        h('button',{className:'btn btn-primary',onClick:saveSettings,disabled:saving,style:{display:'flex',alignItems:'center',gap:'6px'}},
-          h('span',{className:'ms ms-xs'},saving?'sync':'save'), saving?'กำลังบันทึก...':'บันทึก Settings'
-        )
-      )
     ),
 
     // ── Locked Users ──

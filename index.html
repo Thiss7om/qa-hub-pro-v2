@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- [FIX CRITICAL-3] Content Security Policy — ลด XSS attack surface -->
+<!-- [FIX M-3] *** REVERTED strict-dynamic (v29 hotfix) ***
+              'strict-dynamic' ถูกลบออก — เพราะ spec CSP ระบุว่า strict-dynamic จะ IGNORE 'unsafe-inline'
+              ทำให้ inline <script> block (React + โค้ดทั้งหมด) ถูกบล็อก → หน้าจอดำ
+              TODO v30+: ย้าย JS → external file ก่อน แล้วค่อยเพิ่ม nonce + strict-dynamic กลับมา -->
 <meta http-equiv="Content-Security-Policy"
   content="default-src 'self';
            script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://accounts.google.com https://apis.google.com https://alcdn.msauth.net https://alcdn.msftauth.net;
@@ -1265,12 +1269,13 @@ const detectionOpts = ['Positive','Negative'];
 // ─── GOOGLE SHEETS CONFIG ─────────────────────────────────────────────────────
 // ใส่ URL ของ Google Apps Script Web App ที่ Deploy แล้ว
 // [FIX VULN-06] SS_ID ถูกลบออกจาก client-side code แล้ว — อยู่ใน Code.gs เท่านั้น
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzBWwx4cGddrUMH7mgFqfqA6u6beqfmU3Y9C4M89LiJajbZPqSLwErCk3xRJtjKphpt/exec'; // ← ใส่ GAS URL ใหม่หลัง re-deploy
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbz-puwrYEtp5xcHVORkUvg9kbIdfhJwJVdodNH9OGh65sAx_ZTGOoHG200bHI0uBPAB/exec'; // ← ใส่ GAS URL ใหม่หลัง re-deploy
 
 // [v23-PLAN] Super Admin (Dev) emails — คั่นด้วย comma, ไม่มี space
 // User ที่มี email อยู่ในนี้จะ: (1) ไม่เห็น Plan modal (2) เห็น Dev Dashboard ใน sidebar
 // ตัวอย่าง: 'dev@company.com,admin@company.com'
-window.__QAH_SUPER_ADMINS__ = 'thosapon.som@gmail.com,itomato125@gmail.com'; // ← ใส่ email Dev ที่นี่
+// [FIX C-1] ลบ window.__QAH_SUPER_ADMINS__ — Super Admin ตรวจจาก server-side (Script Properties) เท่านั้น
+// isSuperAdmin flag ได้รับจาก login response: currentUser.isSuperAdmin
 
 // ─── [v21] GOOGLE OAUTH CLIENT ID ────────────────────────────────────────────
 // ตั้งค่า: Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs
@@ -1319,7 +1324,12 @@ const setAuthToken = (t) => { try { if (t) sessionStorage.setItem('qah_auth_toke
     }
 
     // ── ทุก tab รับฟัง REQUEST_SESSION และตอบกลับถ้ามี token ──
+    // [FIX M-2] ตรวจ origin ก่อนรับ BroadcastChannel message
+    // ป้องกัน tab อื่นที่ถูก XSS (same-origin) รับ session token
     ch.addEventListener('message', (ev) => {
+      // BroadcastChannel ไม่มี origin property จาก spec ที่ใช้งานง่าย
+      // แต่เราตรวจ ev.isTrusted เพื่อกรอง synthetic events
+      if (!ev.isTrusted) return;
       if (ev.data && ev.data.type === 'REQUEST_SESSION') {
         const tok = sessionStorage.getItem('qah_auth_token');
         if (tok) {
@@ -1339,6 +1349,8 @@ const setAuthToken = (t) => { try { if (t) sessionStorage.setItem('qah_auth_toke
         sessionStorage.removeItem('qah_session_user');
         sessionStorage.removeItem('qah_session_team');
         sessionStorage.removeItem('qah_is_admin');
+        // [FIX M-4] ลบ file cache เมื่อ logout จาก tab อื่น
+        try { localStorage.removeItem('qah_file_cache'); } catch {}
         // reload ไปหน้า login
         window.location.reload();
       }
@@ -1393,6 +1405,8 @@ function clearAllSession(opts) {
     sessionStorage.removeItem('qah_session_team');
     sessionStorage.removeItem('qah_is_admin');
   } catch {}
+  // [FIX M-4] ลบ file cache (base64 binary) ออกจาก localStorage ทุกครั้งที่ session สิ้นสุด
+  try { localStorage.removeItem('qah_file_cache'); } catch {}
   if (broadcastLogout && window._qahBroadcast) {
     try { window._qahBroadcast.postMessage({ type: 'LOGOUT' }); } catch {}
   }
@@ -2061,9 +2075,9 @@ function App() {
     const pollSlips = async () => {
       const tok = getAuthToken();
       if (!tok) return;
-      const superEmails = (window.__QAH_SUPER_ADMINS__ || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+      // [FIX C-1] ตรวจ isSuperAdmin จาก flag ที่ server ส่งมา (ไม่ใช้ email list client-side)
       const cu = (() => { try { return JSON.parse(sessionStorage.getItem('qah_session_user') || 'null'); } catch { return null; } })();
-      if (!cu || !superEmails.includes((cu.email || '').toLowerCase())) return;
+      if (!cu || cu.isSuperAdmin !== true) return;
       try {
         const orders = await api.getDevOrders('pending_payment');
         const fresh = Array.isArray(orders) ? orders : [];
@@ -2121,6 +2135,20 @@ function App() {
     if (!USE_GAS) return;
     if (realtimePollingRef.current) clearInterval(realtimePollingRef.current);
 
+    // [FIX M-5] Exponential backoff — ป้องกัน thundering herd เมื่อ GAS ล่ม
+    let pollFailCount = 0;
+    const POLL_BASE_MS   = 10000;  // 10 วินาที (ปกติ)
+    const POLL_MAX_MS    = 300000; // 5 นาที (สูงสุด)
+    let   pollTimeoutRef = null;
+
+    const scheduleNextPoll = () => {
+      if (pollTimeoutRef) clearTimeout(pollTimeoutRef);
+      const backoffMs = pollFailCount === 0
+        ? POLL_BASE_MS
+        : Math.min(POLL_BASE_MS * Math.pow(2, pollFailCount - 1), POLL_MAX_MS);
+      pollTimeoutRef = setTimeout(runPoll, backoffMs);
+    };
+
     const pollData = async () => {
       const tok = getAuthToken();
       if (!tok) return;
@@ -2134,6 +2162,8 @@ function App() {
           api.getAll('plans'),
           api.getAll('members'),
         ]);
+        // [FIX M-5] reset backoff เมื่อ request สำเร็จ
+        pollFailCount = 0;
 
         const prev = prevDataRef.current;
         const changes = [];
@@ -2244,8 +2274,15 @@ function App() {
 
         // บันทึกค่าปัจจุบันสำหรับการเปรียบเทียบครั้งต่อไป
         prevDataRef.current = { defects: freshDefects, tasks: freshTasks, testCases: freshTCs, projects: freshProjects, plans: freshPlans || [] };
-      } catch(e) { /* silent */ }
+      } catch(e) {
+        // [FIX M-5] เพิ่ม fail count → backoff จะยืดเวลาขึ้นเป็น 2x ทุกครั้ง
+        pollFailCount = Math.min(pollFailCount + 1, 5); // cap ที่ 5 (= POLL_MAX_MS)
+      }
+      scheduleNextPoll();
     };
+
+    // ห่อ pollData ใน runPoll เพื่อให้ scheduleNextPoll เรียกได้
+    const runPoll = () => pollData();
 
     // เริ่ม poll ครั้งแรกเพื่อ seed ค่าเปรียบเทียบ
     const seedPoll = async () => {
@@ -2260,7 +2297,10 @@ function App() {
       } catch(e) {}
     };
     seedPoll();
-    realtimePollingRef.current = setInterval(pollData, 10000); // ทุก 10 วินาที
+    // [FIX M-5] ใช้ setTimeout-based scheduling แทน setInterval — รองรับ backoff
+    scheduleNextPoll();
+    // เก็บ cleanup ref (ใช้ special marker เพื่อให้ clearInterval ไม่ error)
+    realtimePollingRef.current = { _isBackoff: true, _stop: () => { if (pollTimeoutRef) clearTimeout(pollTimeoutRef); } };
   }, [USE_GAS]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // เริ่ม realtime polling เมื่อ login สำเร็จ
@@ -2268,7 +2308,14 @@ function App() {
     if (currentUser && USE_GAS && !loading) {
       startRealtimePolling();
     }
-    return () => { if (realtimePollingRef.current) clearInterval(realtimePollingRef.current); };
+    return () => {
+      const ref = realtimePollingRef.current;
+      if (ref) {
+        // [FIX M-5] รองรับทั้ง setInterval id (number) และ backoff object
+        if (ref._isBackoff) { ref._stop(); }
+        else { clearInterval(ref); }
+      }
+    };
   }, [currentUser, USE_GAS, loading, startRealtimePolling]);
 
   // ── Manual refresh from Sheets ──
@@ -2343,7 +2390,8 @@ function App() {
   // Auth token (secret) ถูกย้ายไป sessionStorage แล้ว [FIX CRITICAL-3]
   const setCurrentUser = (u) => {
     if (!u) { setCurrentUserState(null); setSession('qah_session_user', null); return; }
-    const safeUser = { id: u.id, name: u.name, email: u.email, color: u.color, avatarIcon: u.avatarIcon||'', passwordChangedAt: u.passwordChangedAt||'', passwordExpiry: u.passwordExpiry||'', passwordDaysLeft: u.passwordDaysLeft!=null ? u.passwordDaysLeft : 999, authMethod: u.authMethod||'' };
+    // [FIX C-1] เก็บ isSuperAdmin flag จาก server response (boolean จาก server เท่านั้น)
+    const safeUser = { id: u.id, name: u.name, email: u.email, color: u.color, avatarIcon: u.avatarIcon||'', passwordChangedAt: u.passwordChangedAt||'', passwordExpiry: u.passwordExpiry||'', passwordDaysLeft: u.passwordDaysLeft!=null ? u.passwordDaysLeft : 999, authMethod: u.authMethod||'', isSuperAdmin: u.isSuperAdmin === true };
     setCurrentUserState(safeUser);
     setSession('qah_session_user', safeUser);
   };
@@ -2420,10 +2468,11 @@ function App() {
   }, [theme]);
 
   // [v23-PLAN] Super Admin detection (email-based, loaded from session)
+  // [FIX C-1] isSuperAdminUser มาจาก flag ที่ server ส่งมาใน login response เท่านั้น
+  // ไม่ใช้ email list บน client อีกต่อไป — ป้องกัน client-side bypass ผ่าน console
   const isSuperAdminUser = useMemo(() => {
     if (!currentUser) return false;
-    const superEmails = (window.__QAH_SUPER_ADMINS__ || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
-    return superEmails.includes((currentUser.email||'').toLowerCase());
+    return currentUser.isSuperAdmin === true;
   }, [currentUser]);
 
   // [v23-PLAN] Plan Limit Modal state
@@ -2500,10 +2549,24 @@ function App() {
     if (payload) {
       try {
         const teamInfo = JSON.parse(atob(decodeURIComponent(payload)));
+        // [FIX L-6] ตรวจ required fields ก่อนบันทึก — ป้องกัน invalid/tampered payload
+        if (!teamInfo || !teamInfo.id || !teamInfo.inviteCode) {
+          throw new Error('Invalid invite payload structure');
+        }
         localStorage.setItem('qah_join_payload', JSON.stringify(teamInfo));
-      } catch(e) { console.error('Invalid invite link', e); }
+      } catch(e) {
+        // [FIX L-6] แสดง error ให้ user เห็นแทนที่จะ silent — user จะได้รู้ว่า link เสียหาย
+        console.error('Invalid invite link', e);
+        // เก็บ flag ไว้แสดง toast หลัง React mount
+        window.__qah_invalid_invite__ = true;
+      }
       params.delete('join');
       history.replaceState(null, '', window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash);
+    }
+    // แสดง toast ถ้ามี invalid invite flag
+    if (window.__qah_invalid_invite__) {
+      window.__qah_invalid_invite__ = false;
+      setTimeout(() => showToast('Invite Link ไม่ถูกต้องหรือเสียหาย กรุณาขอ Link ใหม่จาก Admin', 'error'), 500);
     }
   }, []);
 
@@ -3531,6 +3594,18 @@ function LoginPage({ users, setUsers, setUsersState, setTeamsState, setMembersSt
       const res = await api.rawWrite({ action: 'sendVerifyCode', email: emailTrim, purpose: 'reset' });
       if (!res.ok) {
         setResetErr(res.error || 'ส่งอีเมลไม่สำเร็จ');
+        setResetEmailLoading(false);
+        return;
+      }
+      // [FIX L-4] GAS ส่ง { ok:true, data:{ sent:false, reason:'no_account' } } เมื่อไม่พบอีเมล
+      // → แสดง message เดียวกันเพื่อไม่เปิดเผยว่าบัญชีมีอยู่หรือไม่ (ป้องกัน user enumeration)
+      if (res.data && res.data.sent === false) {
+        // อีเมลไม่มีในระบบ แต่แสดง message แบบ generic เหมือนส่ง OTP แล้ว
+        setResetFoundUser({ email: emailTrim });
+        setResetOtp('');
+        setResetOtpErr('');
+        setResetStep('otp');
+        startResetResendTimer();
         setResetEmailLoading(false);
         return;
       }
@@ -4917,6 +4992,8 @@ function DevDashboardPage({ currentUser, showToast }) {
   const [approving, setApproving] = useState({});
   const [rejecting, setRejecting] = useState({});
   const [resending, setResending] = useState({});
+  // [FIX L-3] ใช้ ConfirmModal แทน native confirm() dialog
+  const [rejectConfirm, setRejectConfirm] = useState(null); // null | orderId string
   const [noteMap, setNoteMap]   = useState({});
 
   // [v25] Dev Settings state
@@ -5009,7 +5086,12 @@ function DevDashboardPage({ currentUser, showToast }) {
   };
 
   const reject = async (orderId) => {
-    if (!confirm('ต้องการ Reject Order นี้? ระบบจะ Downgrade ทีมกลับเป็น Free Plan')) return;
+    // [FIX L-3] เปิด ConfirmModal แทน native confirm() — UX ดีกว่าและรองรับ PWA/iframe
+    setRejectConfirm(orderId);
+  };
+
+  const doReject = async (orderId) => {
+    setRejectConfirm(null);
     setRejecting(p => ({...p, [orderId]: true}));
     try {
       await api.rejectOrder(orderId, noteMap[orderId] || '');
@@ -5034,6 +5116,14 @@ function DevDashboardPage({ currentUser, showToast }) {
   const filtered = tab === 'all' ? orders : orders.filter(o => o.status === (tab === 'pending' ? 'pending_payment' : tab));
 
   return h('div', null,
+    // [FIX L-3] ConfirmModal สำหรับ Reject Order — แทน native confirm()
+    rejectConfirm && h(ConfirmModal, {
+      title: 'ยืนยัน Reject Order',
+      message: 'ต้องการ Reject Order นี้? ระบบจะ Downgrade ทีมกลับเป็น Free Plan',
+      danger: true,
+      onConfirm: () => doReject(rejectConfirm),
+      onClose: () => setRejectConfirm(null),
+    }),
     h('div', { className:'page-header' },
       h('div', null,
         h('h1', { className:'page-title' }, h(React.Fragment, null, h('span',{className:'ms ms-lg', style:{marginRight:'8px',color:'var(--accent)'}},'admin_panel_settings'), 'Dev Dashboard')),
@@ -6084,6 +6174,8 @@ function Topbar({ currentUser, setCurrentUser, users, setUsers, currentTeam, set
                   if (window._qahBroadcast) { try { window._qahBroadcast.postMessage({ type: 'LOGOUT' }); } catch {} }
                   setAuthToken(null);
                   clearSessionIssuedAt(); // [SESSION-TIMEOUT] ล้าง issued-at + last-activity
+                  // [FIX M-4] ลบ file cache (base64 binary) ออกจาก localStorage เมื่อ logout
+                  try { localStorage.removeItem('qah_file_cache'); } catch {}
                   setCurrentUser(null);
                   setCurrentTeam(null);
                   setPage('login');

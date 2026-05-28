@@ -1253,7 +1253,7 @@ const detectionOpts = ['Positive','Negative'];
 // ─── GOOGLE SHEETS CONFIG ─────────────────────────────────────────────────────
 // ใส่ URL ของ Google Apps Script Web App ที่ Deploy แล้ว
 // [FIX VULN-06] SS_ID ถูกลบออกจาก client-side code แล้ว — อยู่ใน Code.gs เท่านั้น
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzr4Cm5UVAxGDGoWoBQLyfVN75_0O8zuU2wWmbGRY_JRjcC6NxZGf_QXf5gJn9nlhPz/exec'; // ← ใส่ GAS URL ใหม่หลัง re-deploy
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzBWwx4cGddrUMH7mgFqfqA6u6beqfmU3Y9C4M89LiJajbZPqSLwErCk3xRJtjKphpt/exec'; // ← ใส่ GAS URL ใหม่หลัง re-deploy
 
 // [v23-PLAN] Super Admin (Dev) emails — คั่นด้วย comma, ไม่มี space
 // User ที่มี email อยู่ในนี้จะ: (1) ไม่เห็น Plan modal (2) เห็น Dev Dashboard ใน sidebar
@@ -5376,9 +5376,11 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
       // [v26-FIX] ยังไม่อัพเดต local state จนกว่าจะเลือก Plan เสร็จ
       // บันทึก pending team ไว้ รอเลือก Plan
       setPendingTeam({ team: t, member: newMember });
-      // [v26-FIX] ถ้าเป็น Unlimited/Paid Plan อยู่แล้ว → ข้าม plan step (selectPlan free อัตโนมัติ)
-      if (isUnlimitedPlan) {
-        // Unlimited user: ไม่ต้องเลือก Plan → selectPlan('free') อัตโนมัติ แต่ทีมไม่มี limit
+      // [v27-FIX] ถ้าเป็น Unlimited/Paid Plan อยู่แล้ว หรือเป็น SuperAdmin → ข้าม plan step
+      // ส่ง plan='paid' ไปให้ backend (v27: backend จะ auto-detect เป็น unlimited อยู่แล้ว แต่ส่งไปด้วยเพื่อ safety)
+      const callerIsUnlimited = isUnlimitedPlan || isSuperAdminUser;
+      if (callerIsUnlimited) {
+        // Unlimited user: ไม่ต้องเลือก Plan → selectPlan('paid') อัตโนมัติ → ทีมใหม่ได้ unlimited ด้วย
         // อัพเดต state ทันที แล้ว navigate ไป dashboard
         (setTeamsState || setTeams)(p => [...p, t]);
         (setMembersState || setMembers)(p => [...p, newMember]);
@@ -5388,8 +5390,8 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
         setTeamName('');
         setShowCreate(false);
         showToast(`ทีม "${t.name}" สร้างสำเร็จ!`);
-        // Call selectPlan in background (fire & forget) เพื่อบันทึก plan record
-        api.selectPlan(t.id, 'free', currentUser.email, currentUser.name, t.name).catch(() => {});
+        // [v27-FIX] ส่ง plan='paid' → backend จะ detect SuperAdmin/unlimited และบันทึกเป็น unlimited อัตโนมัติ
+        api.selectPlan(t.id, 'paid', currentUser.email, currentUser.name, t.name).catch(() => {});
       } else {
         setPlanStep('plan');
       }

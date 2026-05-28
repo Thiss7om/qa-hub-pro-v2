@@ -4953,7 +4953,7 @@ function DevDashboardPage({ currentUser, showToast }) {
                   h('td', { style:{textAlign:'center'} }, (() => {
                     // ดึง slip URL จาก note field (format: "SLIP:<url> @ <timestamp>")
                     const slipUrl = (() => {
-                      const note = order.note || '';
+                      const note = String(order.note || '');
                       const m = note.match(/SLIP:(https?:\/\/[^\s]+)/);
                       return m ? m[1] : null;
                     })();

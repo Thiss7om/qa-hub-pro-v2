@@ -2735,7 +2735,7 @@ function App() {
     // [v24] Plan info
     currentPlan, isFreePlan, isUnlimitedPlan,
     // [v25] allow child components to refresh global plan state
-    setTeamPlanData,
+    setTeamPlanData, setPlanFetching,
     // [v25-FIX] allow child components to clear trial banner after token save
     setTrialDaysLeft };
 
@@ -5365,7 +5365,7 @@ function DevDashboardPage({ currentUser, showToast }) {
     )
   );
 }
-function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, setMembers, setMembersState, myTeams, setCurrentTeam, setPage, showToast, addLog, pendingMembers, setPendingMembers, autoJoinCode, setAutoJoinCode, processInvite, setInviteWaitingTeam, isUnlimitedPlan, isSuperAdminUser, setTeamPlanData }) {
+function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, setMembers, setMembersState, myTeams, setCurrentTeam, setPage, showToast, addLog, pendingMembers, setPendingMembers, autoJoinCode, setAutoJoinCode, processInvite, setInviteWaitingTeam, isUnlimitedPlan, isSuperAdminUser, setTeamPlanData, setPlanFetching }) {
   const [showCreate, setShowCreate] = useState(false);
   const [teamName, setTeamName] = useState('');
   const [inviteCode, setInviteCode] = useState(autoJoinCode || '');

@@ -16,7 +16,15 @@
            base-uri 'self';">
 <title>QAHUBs — Test Management v29</title>
 <!-- QAHUBs v29 |
-     [v29-NAV-FIX] แก้ flash/กระพริบเมื่อ navigate หรือ refresh ข้อมูล:
+     [v29-BANNER-FIX] แก้แถบเหลือง Free Plan ยังแสดงเมื่อ Unlimited User สร้างทีมใหม่:
+                   • Root cause: createTeamStep1 (unlimited path) ใช้ fire & forget สำหรับ api.selectPlan
+                     → useEffect fetch plan ใหม่ทันทีหลัง setCurrentTeam แต่ GAS ยังไม่ได้บันทึก
+                     → fetch return 'free' → banner โผล่ (race condition)
+                   • Fix 1: await api.selectPlan ก่อน setCurrentTeam (ใน unlimited path)
+                   • Fix 2: setTeamPlanData + setPlanFetching(false) ก่อน setCurrentTeam
+                             เพื่อให้ useEffect เห็นค่าที่ถูกต้องแล้วก่อน fetch
+                   • Fix 3: useEffect fetch — เพิ่ม stale-check: ถ้า prev plan เป็น paid/unlimited
+                             แต่ fetch return free → เก็บค่าเดิมไว้ (ป้องกัน race condition สองชั้น)
                    • navigate() — fetch ข้อมูลใหม่ให้เสร็จก่อน แล้วจึง setPage()
                      (เดิม setPage ทันที → หน้าใหม่ render ด้วย data เก่า → กระพริบ)
                    • ขณะ fetch แสดง GlobalLoadingOverlay (overlay สีเข้มกึ่งโปร่งใส)
@@ -2445,7 +2453,15 @@ function App() {
     (async () => {
       try {
         const data = await api.getMyPlan(teamIdToCheck);
-        setTeamPlanData(data || { plan: 'free', status: 'active' });
+        const fetched = data || { plan: 'free', status: 'active' };
+        // [v29-RACE-FIX] ถ้า GAS ยังไม่ได้บันทึก plan ใหม่ (คืน free) แต่ local state เป็น paid/unlimited
+        // → อย่า override ด้วย free (race condition หลัง createTeam)
+        setTeamPlanData(prev => {
+          const prevPlan = prev?.plan;
+          const isPrevPaid = prevPlan === 'paid' || prevPlan === 'unlimited' || prevPlan === 'paid_trial';
+          if (isPrevPaid && fetched.plan === 'free') return prev; // เก็บค่าเดิมไว้
+          return fetched;
+        });
       } catch(e) { setTeamPlanData({ plan: 'free', status: 'active' }); }
       finally { setPlanFetching(false); }
     })();
@@ -5392,10 +5408,14 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
       // [v27-BANNER-FIX] await selectPlan + setTeamPlanData ทันที → ป้องกัน banner "Free Plan" ขึ้น
       const callerIsUnlimited = isUnlimitedPlan || isSuperAdminUser;
       if (callerIsUnlimited) {
-        // [v27-BANNER-FIX] setTeamPlanData ก่อน navigate → isFreePlan = false → banner ไม่ขึ้น
-        if (typeof setTeamPlanData === 'function') {
-          setTeamPlanData({ plan: 'paid', status: 'active' });
-        }
+        // [v29-BANNER-FIX] await selectPlan ก่อน → GAS บันทึก plan แน่นอน
+        // จากนั้น setTeamPlanData + setPlanFetching(true) ก่อน setCurrentTeam
+        // เพื่อป้องกัน useEffect fetch กลับมาเป็น free (race condition)
+        try {
+          await api.selectPlan(t.id, 'paid', currentUser.email, currentUser.name, t.name);
+        } catch(e2) { /* ไม่สำคัญ — backend ยังบันทึกได้ทีหลัง */ }
+        setTeamPlanData({ plan: 'paid', status: 'active' });
+        setPlanFetching(false); // ป้องกัน useEffect override ทันที
         (setTeamsState || setTeams)(p => [...p, t]);
         (setMembersState || setMembers)(p => [...p, newMember]);
         setCurrentTeam(t);
@@ -5404,8 +5424,6 @@ function TeamSelectPage({ currentUser, teams, setTeams, setTeamsState, members, 
         setTeamName('');
         setShowCreate(false);
         showToast(`ทีม "${t.name}" สร้างสำเร็จ!`);
-        // [v27-FIX] fire & forget — backend บันทึก plan (ไม่ต้อง await เพราะ setTeamPlanData แล้ว)
-        api.selectPlan(t.id, 'paid', currentUser.email, currentUser.name, t.name).catch(() => {});
       } else {
         setPlanStep('plan');
       }

@@ -14,8 +14,13 @@
            frame-src https://accounts.google.com https://login.microsoftonline.com;
            object-src 'none';
            base-uri 'self';">
-<title>QAHUBs — Test Management v28</title>
-<!-- QAHUBs v28 |
+<title>QAHUBs — Test Management v29</title>
+<!-- QAHUBs v29 |
+     [v29-NAV-FIX] แก้ flash/กระพริบเมื่อ navigate หรือ refresh ข้อมูล:
+                   • navigate() — fetch ข้อมูลใหม่ให้เสร็จก่อน แล้วจึง setPage()
+                     (เดิม setPage ทันที → หน้าใหม่ render ด้วย data เก่า → กระพริบ)
+                   • ขณะ fetch แสดง GlobalLoadingOverlay (overlay สีเข้มกึ่งโปร่งใส)
+                   • เมื่อ fetch เสร็จหรือ error → setPage + ซ่อน overlay พร้อมกัน
      [v28-SUPER-ADMIN-SECURITY] ย้าย Login Security / Session Timeout / Google Sheets
                                  จาก Admin (System Settings) → Super Admin (Dev Dashboard)
                                  • ปุ่ม Google Sheets บน Topbar: isAdmin → isSuperAdminUser
@@ -1449,6 +1454,11 @@ function stripFilesForSheet(obj) {
 // ─── API CLIENT ───────────────────────────────────────────────────────────────
 // [FIX VULN-02] แนบ token ทุก request  |  [FIX VULN-01] ลบ encrypt/decrypt ฝั่ง client
 
+// [v29-NAV-FIX] Module-level write guard — เรียกจาก child component หลัง save/delete
+// ป้องกัน realtime polling overwrite optimistic update ใน 25 วินาที
+let _markPendingWrite = null;
+const markWrite = (sheet) => { if (_markPendingWrite) _markPendingWrite(sheet); };
+
 const SHEETS_VALID = new Set(['users','teams','members','projects','tasks','testCases','defects','logs','loginLogs','pending','plans','orders','teamTokens']);
 
 const api = {
@@ -1539,11 +1549,11 @@ const api = {
     return json.data;
   },
 
-  insert(sheet, data)     { return this._write({ action:'insert',     sheet, data }); },
-  update(sheet, data)     { return this._write({ action:'update',     sheet, id:data.id, data }); },
+  insert(sheet, data)     { markWrite(sheet); return this._write({ action:'insert',     sheet, data }); },
+  update(sheet, data)     { markWrite(sheet); return this._write({ action:'update',     sheet, id:data.id, data }); },
   // [FIX-TEAMID] ส่ง teamId ไปด้วยเสมอสำหรับ delete — GAS ต้องการ teamId เพื่อ verify permissions
-  delete(sheet, id, teamId) { return this._write({ action:'delete', sheet, id, ...(teamId ? { teamId } : {}) }); },
-  bulkInsert(sheet, data) { return this._write({ action:'bulkInsert', sheet, data }); },
+  delete(sheet, id, teamId) { markWrite(sheet); return this._write({ action:'delete', sheet, id, ...(teamId ? { teamId } : {}) }); },
+  bulkInsert(sheet, data) { markWrite(sheet); return this._write({ action:'bulkInsert', sheet, data }); },
   write(payload)          { return this._write(payload); },
   // [FIX-INVITE] ค้นหาทีมจาก invite code — query GAS โดยตรง (ไม่ใช้ local state ที่กรองเฉพาะทีมของตัวเอง)
   lookupTeamByCode(inviteCode) { return this._write({ action:'lookupTeamByCode', inviteCode }); },
@@ -1667,6 +1677,17 @@ function App() {
   // format: { [id]: { status: string, ts: timestamp } }
   const pendingTcStatusRef  = useRef({});
   const pendingDefStatusRef = useRef({});
+
+  // [v29-NAV-FIX] pendingWriteRef — ติดตาม write ล่าสุดทุก sheet
+  // เมื่อ child ทำ create/update/delete → บันทึก timestamp ไว้ใน ref นี้
+  // realtime polling จะ skip overwrite ถ้ายังอยู่ใน window 25 วินาที
+  // format: { [sheet]: { ts: timestamp } }
+  const pendingWriteRef = useRef({});
+  const markPendingWrite = useCallback((sheet) => {
+    pendingWriteRef.current[sheet] = { ts: Date.now() };
+  }, []);
+  // [v29] wire module-level helper to App's markPendingWrite
+  useEffect(() => { _markPendingWrite = markPendingWrite; return () => { _markPendingWrite = null; }; }, [markPendingWrite]);
 
   // [FIX] token อยู่ใน sessionStorage (หายเมื่อ reload) — ถ้าไม่มี token อย่า restore user/team
   // [FIX NEW-TAB] BroadcastChannel อาจส่ง token มาหลัง init เล็กน้อย
@@ -2143,31 +2164,40 @@ function App() {
         }
 
         // อัพเดท state ถ้าข้อมูลเปลี่ยน
-        if (prev.defects !== null && JSON.stringify(freshDefects.map(d=>d.id+d.status+d.updatedAt)) !== JSON.stringify(prev.defects.map(d=>d.id+d.status+d.updatedAt))) {
+        // [v29-NAV-FIX] ตรวจ pendingWriteRef — ถ้า child เพิ่ง write sheet นี้ใน 25 วินาทีที่ผ่านมา
+        // ให้ skip overwrite เพื่อป้องกัน flash (optimistic update จะถูกแทนที่ด้วย GAS data รอบถัดไป)
+        const now2 = Date.now();
+        const WRITE_GUARD_MS = 25000;
+        const writes = pendingWriteRef.current;
+        // ล้าง write guard ที่หมดอายุ
+        Object.keys(writes).forEach(k => { if (now2 - writes[k].ts > WRITE_GUARD_MS) delete writes[k]; });
+        const isGuarded = (sheet) => !!(writes[sheet] && now2 - writes[sheet].ts < WRITE_GUARD_MS);
+
+        if (!isGuarded('defects') && prev.defects !== null && JSON.stringify(freshDefects.map(d=>d.id+d.status+d.updatedAt)) !== JSON.stringify(prev.defects.map(d=>d.id+d.status+d.updatedAt))) {
           setDefectsState(cur => {
             const ops = pendingDefStatusRef.current;
-            const now2 = Date.now();
-            Object.keys(ops).forEach(id => { if (now2 - ops[id].ts > 20000) delete ops[id]; });
+            const n2 = Date.now();
+            Object.keys(ops).forEach(id => { if (n2 - ops[id].ts > 20000) delete ops[id]; });
             if (Object.keys(ops).length === 0) return freshDefects;
             return freshDefects.map(d => { const op = ops[d.id]; return op ? {...d, status: op.status} : d; });
           });
         }
-        if (prev.tasks !== null && JSON.stringify(freshTasks.map(t=>t.id+t.status+t.updatedAt)) !== JSON.stringify(prev.tasks.map(t=>t.id+t.status+t.updatedAt))) {
+        if (!isGuarded('tasks') && prev.tasks !== null && JSON.stringify(freshTasks.map(t=>t.id+t.status+t.updatedAt)) !== JSON.stringify(prev.tasks.map(t=>t.id+t.status+t.updatedAt))) {
           setTasksState(freshTasks);
         }
-        if (prev.testCases !== null && JSON.stringify(freshTCs.map(tc=>tc.id+tc.status+tc.updatedAt)) !== JSON.stringify(prev.testCases.map(tc=>tc.id+tc.status+tc.updatedAt))) {
+        if (!isGuarded('testCases') && prev.testCases !== null && JSON.stringify(freshTCs.map(tc=>tc.id+tc.status+tc.updatedAt)) !== JSON.stringify(prev.testCases.map(tc=>tc.id+tc.status+tc.updatedAt))) {
           setTestCasesState(cur => {
             const ops = pendingTcStatusRef.current;
-            const now2 = Date.now();
-            Object.keys(ops).forEach(id => { if (now2 - ops[id].ts > 20000) delete ops[id]; });
+            const n2 = Date.now();
+            Object.keys(ops).forEach(id => { if (n2 - ops[id].ts > 20000) delete ops[id]; });
             if (Object.keys(ops).length === 0) return freshTCs;
             return freshTCs.map(tc => { const op = ops[tc.id]; return op ? {...tc, status: op.status} : tc; });
           });
         }
-        if (prev.projects !== null && JSON.stringify(freshProjects.map(p=>p.id+p.status+p.updatedAt)) !== JSON.stringify(prev.projects.map(p=>p.id+p.status+p.updatedAt))) {
+        if (!isGuarded('projects') && prev.projects !== null && JSON.stringify(freshProjects.map(p=>p.id+p.status+p.updatedAt)) !== JSON.stringify(prev.projects.map(p=>p.id+p.status+p.updatedAt))) {
           setProjectsState(freshProjects);
         }
-        if (prev.plans !== null && JSON.stringify(freshPlans.map(p=>p.id+p.status+p.updatedAt)) !== JSON.stringify(prev.plans.map(p=>p.id+p.status+p.updatedAt))) {
+        if (!isGuarded('plans') && prev.plans !== null && JSON.stringify(freshPlans.map(p=>p.id+p.status+p.updatedAt)) !== JSON.stringify(prev.plans.map(p=>p.id+p.status+p.updatedAt))) {
           setPlansState(freshPlans || []);
         }
         // [v20.1-FIX-RELOAD] GAS กรอง deleted/inactive ออกก่อนส่งมา
@@ -2520,12 +2550,9 @@ function App() {
   const closeSidebar = () => setSidebarOpen(false);
 
   const navigate = (pg, ctx2={}) => {
-    setPage(pg);
     closeSidebar();
-    if (ctx2.projectId !== undefined) setNavCtx(p=>({...p,...ctx2}));
-    else if (Object.keys(ctx2).length) setNavCtx(p=>({...p,...ctx2}));
-    else setNavCtx(p=>({...p, tab: undefined})); // reset tab เมื่อ navigate ปกติ
-    // [v23-FIX] โหลดข้อมูลใหม่ทุกครั้งที่เปลี่ยนหน้า — แสดง overlay แทน full-page loading
+    // [v26-NAV-FIX] fetch ก่อน แล้วค่อย setPage() — ป้องกัน flash ข้อมูลเก่า
+    // หน้าที่ไม่ต้อง fetch (login, team-select) เปลี่ยนทันที
     if (USE_GAS && getAuthToken() && pg !== 'login' && pg !== 'team-select') {
       setNavLoading(true);
       Promise.all([
@@ -2538,8 +2565,26 @@ function App() {
         setProjectsState(p); setTasksState(ta); setTestCasesState(tc);
         setDefectsState(d); setLogsState(l); setLoginLogsState(ll); setPendingMembersState(pm);
         setPlansState(pl || []);
+        // [v26-NAV-FIX] setPage หลัง data พร้อม — ไม่กระพริบ
+        setPage(pg);
+        if (ctx2.projectId !== undefined) setNavCtx(p=>({...p,...ctx2}));
+        else if (Object.keys(ctx2).length) setNavCtx(p=>({...p,...ctx2}));
+        else setNavCtx(p=>({...p, tab: undefined}));
         setNavLoading(false);
-      }).catch(() => { setNavLoading(false); }); // silent error — ยังคงไปหน้าที่เลือก
+      }).catch(() => {
+        // เกิด error ระหว่าง fetch → ยังไปหน้าที่ต้องการ แต่ใช้ data เก่า
+        setPage(pg);
+        if (ctx2.projectId !== undefined) setNavCtx(p=>({...p,...ctx2}));
+        else if (Object.keys(ctx2).length) setNavCtx(p=>({...p,...ctx2}));
+        else setNavCtx(p=>({...p, tab: undefined}));
+        setNavLoading(false);
+      });
+    } else {
+      // ไม่ต้อง fetch (no GAS / login / team-select) — เปลี่ยนทันที
+      setPage(pg);
+      if (ctx2.projectId !== undefined) setNavCtx(p=>({...p,...ctx2}));
+      else if (Object.keys(ctx2).length) setNavCtx(p=>({...p,...ctx2}));
+      else setNavCtx(p=>({...p, tab: undefined}));
     }
   };
 
@@ -2658,6 +2703,7 @@ function App() {
     plans, setPlans, setPlansState, teamPlans,
     sessionTimeoutMsg, setSessionTimeoutMsg,
     pendingMemberOpsRef, pendingTcStatusRef, pendingDefStatusRef,
+    markPendingWrite,
     // [v23-PLAN]
     isSuperAdminUser, showPlanLimitModal, trialDaysLeft,
     // [v24] Plan info
